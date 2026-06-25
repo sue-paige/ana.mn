@@ -1,4 +1,4 @@
-/* ana.mn — soft club runtime. Vanilla, no deps. All motion guarded. */
+/* ana.mn — liquid memory runtime. Vanilla, no deps. All motion guarded. */
 (function () {
   'use strict';
   var rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
