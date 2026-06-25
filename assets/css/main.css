@@ -482,6 +482,9 @@ main{ position:relative; z-index:1; }
 .layer img{
   position:absolute; left:50%; top:0; width:128%; max-width:none;
   transform:translateX(-50%); display:block; user-select:none; -webkit-user-drag:none;
+  /* feather every edge so a layer never reads as a hard floating rectangle */
+  -webkit-mask-image:radial-gradient(ellipse 72% 70% at 50% 48%, #000 30%, rgba(0,0,0,.35) 62%, transparent 86%);
+          mask-image:radial-gradient(ellipse 72% 70% at 50% 48%, #000 30%, rgba(0,0,0,.35) 62%, transparent 86%);
 }
 
 /* image layers (back -> front); opacities driven by JS */
@@ -491,10 +494,6 @@ main{ position:relative; z-index:1; }
 #bg-ink img{ top:-4%; width:140%; }
 #bg-streak{ opacity:0; mix-blend-mode:soft-light; }
 #bg-streak img{ top:-10%; width:150%; height:120%; object-fit:cover; }
-#bg-banner{ opacity:0; mix-blend-mode:luminosity; }
-#bg-banner img{ top:32%; width:120%; }
-#bg-chrome{ opacity:0; mix-blend-mode:luminosity; }
-#bg-chrome img{ top:18%; width:132%; }
 #bg-portal{ opacity:0; mix-blend-mode:screen; }
 #bg-portal img{ top:64%; left:50%; width:128%; transform:translate(-50%,-50%); }
 
@@ -580,8 +579,7 @@ main{ position:relative; z-index:1; }
   .layer{ will-change:auto !important; transform:none !important; }
   .layer img{ transform:translateX(-50%) !important; }
   #bg-arch{ opacity:.15 !important; } #bg-ink{ opacity:.10 !important; }
-  #bg-streak{ opacity:.16 !important; } #bg-banner{ opacity:.18 !important; }
-  #bg-chrome{ opacity:.13 !important; } #bg-portal{ opacity:0 !important; }
+  #bg-streak{ opacity:.16 !important; } #bg-portal{ opacity:0 !important; }
   #bg-grid{ opacity:.4 !important; } #bg-mullion{ opacity:.46 !important; }
   #bg-ghost{ opacity:.8 !important; } #bg-fig{ opacity:.45 !important; }
   #bg-tex-doc{ opacity:.08 !important; } #bg-tex-fig{ opacity:.07 !important; } #bg-tex-water{ opacity:.08 !important; }

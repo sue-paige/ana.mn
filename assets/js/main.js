@@ -117,7 +117,7 @@
   ).map(function (el) { return { el: el, speed: parseFloat(el.getAttribute('data-speed')) || 0 }; });
 
   var bgArch = $('bg-arch'), bgInk = $('bg-ink'), bgStreak = $('bg-streak'),
-      bgBanner = $('bg-banner'), bgChrome = $('bg-chrome'), bgPortal = $('bg-portal'),
+      bgPortal = $('bg-portal'),
       bgFig = $('bg-fig'), bgVig = $('bg-vig'), bgScrim = $('bg-scrim'),
       bgMesh = $('bg-mesh'), bgGrid = $('bg-grid');
   var bgTexDoc = $('bg-tex-doc'), bgTexFig = $('bg-tex-fig'), bgTexWater = $('bg-tex-water');
@@ -171,8 +171,6 @@
     set(bgArch, 0.05 + 0.10 * band(prog, -1, 0, 0.18, 0.46));
     set(bgInk, 0.10 * band(prog, 0, 0.03, 0.16, 0.34) * br);
     set(bgStreak, 0.16 * band(prog, 0.10, 0.26, 0.52, 0.80));
-    set(bgBanner, 0.20 * band(prog, 0.20, 0.36, 0.60, 0.86));
-    set(bgChrome, 0.18 * band(prog, 0.26, 0.42, 0.64, 0.90));
     set(bgFig, 0.30 * band(prog, 0.04, 0.16, 0.38, 0.62));
     /* faint ghost-image texture — her work surfacing and fully dissolving */
     set(bgTexDoc, 0.10 * band(prog, 0.02, 0.12, 0.26, 0.42) * br);
