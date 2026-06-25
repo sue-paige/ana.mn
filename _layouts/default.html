@@ -5,6 +5,44 @@
 </head>
 <body id="top">
 
+  <!-- ===================== INTRO DRAIN + HALFTONE HAUNT ===================== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="liquidDrain" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.006 0.011" numOctaves="2" seed="7" result="swell">
+          <animate attributeName="baseFrequency" dur="2.8s" repeatCount="1" fill="freeze"
+                   keyTimes="0;0.5;1" values="0.006 0.011; 0.013 0.02; 0.02 0.03"/>
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="swell" scale="0"
+                           xChannelSelector="R" yChannelSelector="G" result="melted">
+          <animate attributeName="scale" dur="2.8s" repeatCount="1" fill="freeze"
+                   keyTimes="0;0.34;0.64;1" values="0; 30; 110; 240"/>
+        </feDisplacementMap>
+        <feTurbulence type="fractalNoise" baseFrequency="0.9 0.9" numOctaves="2" seed="11" stitchTiles="stitch" result="grain">
+          <animate attributeName="baseFrequency" dur="2.8s" repeatCount="1" fill="freeze"
+                   keyTimes="0;1" values="0.9 0.9; 0.16 0.16"/>
+        </feTurbulence>
+        <feColorMatrix in="grain" type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.33 0 0" result="grainA"/>
+        <feComponentTransfer in="grainA" result="dissolveMask">
+          <feFuncA type="discrete" tableValues="1 1">
+            <animate attributeName="tableValues" dur="2.8s" repeatCount="1" fill="freeze"
+                     keyTimes="0;0.48;0.72;0.88;1"
+                     values="1 1; 0 1 1 1; 0 0 0 1 1; 0 0 0 0 0 1; 0 0 0 0 0 0 0 1"/>
+          </feFuncA>
+        </feComponentTransfer>
+        <feComposite in="melted" in2="dissolveMask" operator="in" result="droplets"/>
+        <feGaussianBlur in="droplets" stdDeviation="2.2" result="goo1"/>
+        <feColorMatrix in="goo1" type="matrix"
+          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 16 -6" result="beads"/>
+        <feComposite in="droplets" in2="beads" operator="atop"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div id="haunt" aria-hidden="true"></div>
+  <div id="intro" aria-hidden="true"><div id="introImg"></div><div id="introWash"></div></div>
+
   <!-- ===================== DYNAMIC BACKGROUND STAGE ===================== -->
   <div class="bgstage" id="bgstage" aria-hidden="true">
     <div class="layer" id="bg-arch"   data-speed="0.04"><img src="/assets/img/bg/far-arch.webp" alt="" loading="eager" decoding="async"></div>

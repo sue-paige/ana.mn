@@ -595,3 +595,46 @@ main{ position:relative; z-index:1; }
   #bg-portal img{ width:200%; }
   .readout{ font-size:9px; gap:1em; }
 }
+
+/* ===========================================================================
+   INTRO DRAIN + HALFTONE HAUNT
+   The dispersal image fills the view, then drains away as liquid droplets
+   (SVG turbulence + dissolve threshold + goo), handing off to a persistent
+   foreground halftone "haunt". Filter runs only during the ~2.8s intro.
+   =========================================================================== */
+
+/* persistent halftone ghost — foreground, above content, below the topbar */
+#haunt{
+  position:fixed; inset:-12% -6%; z-index:25; pointer-events:none;
+  background:var(--sage-deep);                 /* shows through the mask alpha */
+  -webkit-mask:url(/assets/img/halftone.png) center/cover no-repeat;
+          mask:url(/assets/img/halftone.png) center/cover no-repeat;
+  opacity:0; mix-blend-mode:multiply;
+  will-change:transform,opacity; transform:translateZ(0);
+}
+
+/* the draining cover overlay — above absolutely everything */
+#intro{
+  position:fixed; inset:0; z-index:9999; pointer-events:none;
+  overflow:hidden; background:transparent;
+  will-change:opacity; transform:translateZ(0); contain:strict;
+}
+#introImg{
+  position:absolute; inset:-8%; width:116%; height:116%;
+  background:url(/assets/img/intro-dispersal.webp) center/cover no-repeat,
+             url(/assets/img/intro-dispersal.jpg) center/cover no-repeat;
+  filter:url(#liquidDrain);
+  will-change:filter,opacity,transform;
+}
+#introWash{
+  position:absolute; inset:0; pointer-events:none; opacity:0; mix-blend-mode:multiply;
+  background:radial-gradient(120% 90% at 50% 42%, rgba(127,147,163,0), rgba(95,117,104,.5) 78%, rgba(24,28,28,0));
+}
+
+@keyframes introFade{ 0%{opacity:1} 56%{opacity:1} 80%{opacity:.6} 100%{opacity:0} }
+@keyframes introWashIn{ 0%{opacity:0} 42%{opacity:0} 72%{opacity:.7} 100%{opacity:0} }
+
+@media(prefers-reduced-motion:reduce){
+  #intro{ display:none !important; }
+  #haunt{ opacity:.05; transition:none; }
+}

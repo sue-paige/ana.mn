@@ -203,3 +203,65 @@
   window.addEventListener('load', measure);
   requestAnimationFrame(frame);
 })();
+
+/* ===========================================================================
+   INTRO DRAIN + HALFTONE HAUNT
+   Dispersal cover drains into liquid droplets -> persistent foreground halftone.
+   Session-gated (plays once per visit). Reduced-motion = no drain, faint haunt.
+   =========================================================================== */
+(function () {
+  'use strict';
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var intro = document.getElementById('intro');
+  var introImg = document.getElementById('introImg');
+  var wash = document.getElementById('introWash');
+  var haunt = document.getElementById('haunt');
+  if (!haunt) return;
+
+  var HAUNT = 0.075;
+  var played = false;
+  try { played = sessionStorage.getItem('lm_intro') === '1'; } catch (e) {}
+
+  if (reduce || played) {
+    if (intro && intro.parentNode) intro.parentNode.removeChild(intro);
+    haunt.style.opacity = reduce ? '0.05' : HAUNT;
+  } else if (intro && introImg) {
+    var DUR = 2800;
+    var startDrain = function () {
+      try { sessionStorage.setItem('lm_intro', '1'); } catch (e) {}
+      introImg.style.animation = 'introFade ' + DUR + 'ms cubic-bezier(.35,.05,.2,1) forwards';
+      if (wash) wash.style.animation = 'introWashIn ' + DUR + 'ms ease-in-out forwards';
+      setTimeout(function () {
+        haunt.style.transition = 'opacity 1500ms cubic-bezier(.2,.7,0,1)';
+        haunt.style.opacity = HAUNT;
+      }, DUR * 0.6);
+      var done = false;
+      var finish = function () {
+        if (done) return; done = true;
+        intro.style.display = 'none';
+        introImg.style.filter = 'none';
+        haunt.style.opacity = HAUNT;
+      };
+      introImg.addEventListener('animationend', finish, { once: true });
+      setTimeout(finish, DUR + 150);
+    };
+    if (document.readyState === 'complete') requestAnimationFrame(startDrain);
+    else window.addEventListener('load', function () { requestAnimationFrame(startDrain); }, { once: true });
+  }
+
+  /* haunt drift — continuous, transform only */
+  if (!reduce) {
+    var sy = window.pageYOffset || 0, ticking = false, t0 = performance.now();
+    function applyDrift() {
+      ticking = false;
+      var t = (performance.now() - t0) / 1000;
+      var py = sy * -0.06, bx = Math.sin(t * 0.32) * 7, by = Math.cos(t * 0.24) * 9, sc = 1 + Math.sin(t * 0.18) * 0.012;
+      haunt.style.transform = 'translate3d(' + bx.toFixed(2) + 'px,' + (py + by).toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')';
+    }
+    window.addEventListener('scroll', function () {
+      sy = window.pageYOffset || document.documentElement.scrollTop || 0;
+      if (!ticking) { ticking = true; requestAnimationFrame(applyDrift); }
+    }, { passive: true });
+    (function breathe() { applyDrift(); requestAnimationFrame(breathe); })();
+  }
+})();
