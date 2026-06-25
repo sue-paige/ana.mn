@@ -616,26 +616,41 @@ main{ position:relative; z-index:1; }
   will-change:transform,opacity; transform:translateZ(0);
 }
 
-/* the draining cover overlay — above absolutely everything */
+/* the draining cover overlay — above absolutely everything (Direction A: rain
+   rivulets bleed down from the top). .intro__warp carries the goo filter and
+   displaces its child, whose CSS mask is the descending erase front, so the same
+   melt that liquifies the photo tears the waterline into drips. */
 #intro{
   position:fixed; inset:0; z-index:9999; pointer-events:none;
-  overflow:hidden; background:transparent;
-  will-change:opacity; transform:translateZ(0); contain:strict;
+  background:transparent; will-change:opacity; contain:strict;
 }
-#introImg{
-  position:absolute; inset:-8%; width:116%; height:116%;
-  background:url(/assets/img/intro-dispersal.webp) center/cover no-repeat,
-             url(/assets/img/intro-dispersal.jpg) center/cover no-repeat;
-  filter:url(#liquidDrain);
+.intro__warp{
+  position:absolute; inset:0; filter:url(#liquidGoo);
   will-change:filter,opacity,transform;
 }
-#introWash{
-  position:absolute; inset:0; pointer-events:none; opacity:0; mix-blend-mode:multiply;
-  background:radial-gradient(120% 90% at 50% 42%, rgba(127,147,163,0), rgba(95,117,104,.5) 78%, rgba(24,28,28,0));
+.intro__liquid{
+  position:absolute; inset:-6%;             /* bleed for displacement edges */
+  background-image:url(/assets/img/intro-dispersal.webp),url(/assets/img/intro-dispersal.jpg);
+  background-size:cover; background-position:center;
+  --front:0;                                 /* descending erase front, % of height */
+  -webkit-mask-image:linear-gradient(to bottom,
+      rgba(0,0,0,0) 0%, rgba(0,0,0,0) calc((var(--front) - 24) * 1%),
+      rgba(0,0,0,.30) calc((var(--front) - 12) * 1%),
+      rgba(0,0,0,1) calc(var(--front) * 1%), rgba(0,0,0,1) 100%);
+          mask-image:linear-gradient(to bottom,
+      rgba(0,0,0,0) 0%, rgba(0,0,0,0) calc((var(--front) - 24) * 1%),
+      rgba(0,0,0,.30) calc((var(--front) - 12) * 1%),
+      rgba(0,0,0,1) calc(var(--front) * 1%), rgba(0,0,0,1) 100%);
+  will-change:mask-image,opacity;
 }
-
-@keyframes introFade{ 0%{opacity:1} 56%{opacity:1} 80%{opacity:.6} 100%{opacity:0} }
-@keyframes introWashIn{ 0%{opacity:0} 42%{opacity:0} 72%{opacity:.7} 100%{opacity:0} }
+.intro__sheen{
+  position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:.8;
+  --front:0;
+  background:linear-gradient(to bottom,
+     transparent calc((var(--front) - 16) * 1%),
+     rgba(251,250,247,.42) calc((var(--front) - 8) * 1%),
+     transparent calc(var(--front) * 1%));
+}
 
 @media(prefers-reduced-motion:reduce){
   #intro{ display:none !important; }

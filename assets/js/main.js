@@ -212,56 +212,89 @@
 (function () {
   'use strict';
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-  var intro = document.getElementById('intro');
-  var introImg = document.getElementById('introImg');
-  var wash = document.getElementById('introWash');
   var haunt = document.getElementById('haunt');
   if (!haunt) return;
-
-  var HAUNT = 0.075;
-
-  if (reduce) {
-    if (intro && intro.parentNode) intro.parentNode.removeChild(intro);
-    haunt.style.opacity = '0.05';
-  } else if (intro && introImg) {
-    document.documentElement.classList.add('intro-lock');   // lock scroll while the drain plays
-    var DUR = 2800;
-    var startDrain = function () {
-      introImg.style.animation = 'introFade ' + DUR + 'ms cubic-bezier(.35,.05,.2,1) forwards';
-      if (wash) wash.style.animation = 'introWashIn ' + DUR + 'ms ease-in-out forwards';
-      setTimeout(function () {
-        haunt.style.transition = 'opacity 1500ms cubic-bezier(.2,.7,0,1)';
-        haunt.style.opacity = HAUNT;
-      }, DUR * 0.6);
-      var done = false;
-      var finish = function () {
-        if (done) return; done = true;
-        document.documentElement.classList.remove('intro-lock');   // release scroll
-        intro.style.display = 'none';
-        introImg.style.filter = 'none';
-        haunt.style.opacity = HAUNT;
-      };
-      introImg.addEventListener('animationend', finish, { once: true });
-      setTimeout(finish, DUR + 150);
-    };
-    if (document.readyState === 'complete') requestAnimationFrame(startDrain);
-    else window.addEventListener('load', function () { requestAnimationFrame(startDrain); }, { once: true });
-  }
+  var HAUNT_HOLD = 0.07;
 
   /* haunt drift — continuous, transform only */
+  var sy = window.pageYOffset || 0, ticking = false, dt0 = performance.now();
+  function applyDrift() {
+    ticking = false;
+    var t = (performance.now() - dt0) / 1000;
+    var py = sy * -0.06, bx = Math.sin(t * 0.32) * 7, by = Math.cos(t * 0.24) * 9, sc = 1 + Math.sin(t * 0.18) * 0.012;
+    haunt.style.transform = 'translate3d(' + bx.toFixed(2) + 'px,' + (py + by).toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')';
+  }
   if (!reduce) {
-    var sy = window.pageYOffset || 0, ticking = false, t0 = performance.now();
-    function applyDrift() {
-      ticking = false;
-      var t = (performance.now() - t0) / 1000;
-      var py = sy * -0.06, bx = Math.sin(t * 0.32) * 7, by = Math.cos(t * 0.24) * 9, sc = 1 + Math.sin(t * 0.18) * 0.012;
-      haunt.style.transform = 'translate3d(' + bx.toFixed(2) + 'px,' + (py + by).toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')';
-    }
     window.addEventListener('scroll', function () {
       sy = window.pageYOffset || document.documentElement.scrollTop || 0;
       if (!ticking) { ticking = true; requestAnimationFrame(applyDrift); }
     }, { passive: true });
     (function breathe() { applyDrift(); requestAnimationFrame(breathe); })();
+  }
+
+  var intro = document.getElementById('intro');
+  if (reduce || !intro) {
+    if (intro && intro.parentNode) intro.parentNode.removeChild(intro);
+    haunt.style.opacity = reduce ? '0.05' : String(HAUNT_HOLD);
+    return;
+  }
+
+  /* ---- DIRECTION A: rain-rivulet drain ---- */
+  document.documentElement.classList.add('intro-lock');     // lock scroll during the drain
+  var warp = document.getElementById('introWarp');
+  var liquid = document.getElementById('introLiquid');
+  var sheen = document.getElementById('introSheen');
+  var gooTurb = document.getElementById('gooTurb');
+  var gooDisp = document.getElementById('gooDisp');
+  var gooBlur = document.getElementById('gooBlur');
+
+  var DURATION = 3000, HOLD_FRAC = 0.16, start = null, rafId = 0, finished = false;
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function easeInCubic(t) { return t * t * t; }
+
+  function render(t) {
+    var front = easeInOutCubic(t) * 128;                    // erase front recedes top->bottom
+    if (liquid) liquid.style.setProperty('--front', front.toFixed(2));
+    if (sheen) sheen.style.setProperty('--front', front.toFixed(2));
+    var ripple = Math.sin(Math.PI * Math.min(1, t * 1.04)); // 0..1..0 tearing swell
+    var gscale = 16 + easeOutCubic(t) * 30 + ripple * 70;
+    if (gooDisp) gooDisp.setAttribute('scale', (gscale < 0 ? 0 : gscale).toFixed(1));
+    if (gooBlur) gooBlur.setAttribute('stdDeviation', (0.5 + easeOutCubic(t) * 1.8 + ripple * 0.9).toFixed(2));
+    if (gooTurb) gooTurb.setAttribute('baseFrequency', (0.009 + t * 0.012).toFixed(4) + ' ' + (0.006 + t * 0.020).toFixed(4));
+    var fade = t < 0.55 ? 1 : 1 - easeInCubic((t - 0.55) / 0.45);   // whole cover eases out late
+    if (warp) warp.style.opacity = fade.toFixed(3);
+    if (sheen) sheen.style.opacity = (0.8 * fade).toFixed(3);
+    var hp = t < 0.26 ? 0 : easeOutCubic((t - 0.26) / 0.74);        // halftone bloom handoff
+    haunt.style.opacity = (hp * HAUNT_HOLD * 2.7).toFixed(4);
+  }
+
+  function frame(ts) {
+    if (start === null) start = ts;
+    var raw = clamp01((ts - start) / DURATION);
+    var t = clamp01((raw - HOLD_FRAC) / (1 - HOLD_FRAC));   // hold cover, then bleed
+    render(t);
+    if (t < 1) rafId = requestAnimationFrame(frame);
+    else finish();
+  }
+
+  function finish() {
+    if (finished) return; finished = true;
+    cancelAnimationFrame(rafId);
+    document.documentElement.classList.remove('intro-lock');       // release scroll
+    if (warp) { warp.style.opacity = '0'; warp.style.filter = 'none'; }  // kill the goo filter
+    intro.style.display = 'none';
+    if (intro.parentNode) intro.parentNode.removeChild(intro);
+    haunt.style.transition = 'opacity 1100ms cubic-bezier(.2,.7,.2,1)';
+    haunt.style.opacity = String(HAUNT_HOLD);                       // settle the bloom to resting
+  }
+
+  function begin() { rafId = requestAnimationFrame(frame); }
+  if (document.readyState === 'complete') requestAnimationFrame(begin);
+  else {
+    window.addEventListener('load', function () { requestAnimationFrame(begin); }, { once: true });
+    setTimeout(function () { if (start === null) begin(); }, 700);
   }
 })();
 
