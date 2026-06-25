@@ -29,11 +29,13 @@
                            xChannelSelector="R" yChannelSelector="G"/>
       </filter>
 
-      <!-- droplet lens: a sphere displacement map (built in JS) refracts the real
-           page pixels behind each water droplet into a magnifying lens -->
+      <!-- droplet lens: a magnify normal map (a VECTOR SVG data-URI, set from JS)
+           refracts the real page pixels behind each droplet. Vector (not a raster
+           canvas) so Chrome stretches it correctly — Chrome mis-places raster
+           feImage maps, which pinwheeled the refraction. -->
       <filter id="dropletLens" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
-        <feImage id="lensMap" x="0" y="0" width="100%" height="100%" result="normal" preserveAspectRatio="none"/>
-        <feDisplacementMap in="SourceGraphic" in2="normal" scale="66"
+        <feImage id="lensMap" result="normal"/>
+        <feDisplacementMap in="SourceGraphic" in2="normal" scale="46"
                            xChannelSelector="R" yChannelSelector="G"/>
       </filter>
     </defs>

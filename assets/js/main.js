@@ -359,23 +359,26 @@
   if (!layer) return;
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
-  /* build the sphere displacement map (R = x-shift, G = y-shift) for #lensMap */
-  (function buildNormalMap() {
-    var N = 128, c = N / 2, cv = document.createElement('canvas');
-    cv.width = cv.height = N;
-    var ctx = cv.getContext('2d'); if (!ctx) return;
-    var img = ctx.createImageData(N, N), data = img.data, maxShift = 100;
-    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
-      var dx = x - c + 0.5, dy = y - c + 0.5, r = Math.sqrt(dx * dx + dy * dy) / c, amp;
-      if (r >= 1) amp = 0; else { var bow = Math.pow(r, 1.7), edge = r > 0.88 ? (1 - (r - 0.88) / 0.12) : 1; amp = bow * edge; }
-      var ux = r > 0 ? dx / (r * c) : 0, uy = r > 0 ? dy / (r * c) : 0, i = (y * N + x) * 4;
-      data[i] = Math.max(0, Math.min(255, Math.round(128 + ux * amp * maxShift)));
-      data[i + 1] = Math.max(0, Math.min(255, Math.round(128 + uy * amp * maxShift)));
-      data[i + 2] = 128; data[i + 3] = 255;
-    }
-    ctx.putImageData(img, 0, 0);
-    var url = cv.toDataURL('image/png'), fe = document.getElementById('lensMap');
-    if (fe) { fe.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url); fe.setAttribute('href', url); }
+  /* lens displacement map for #lensMap — a VECTOR SVG (gx -> R, gy -> G, with a
+     rim dome) so it scales correctly in every engine. A raster canvas map gets
+     placed at intrinsic size by Chrome (not stretched), mis-aligning the neutral
+     centre and pinwheeling the refraction; a vector map renders identically in
+     Chrome and Firefox. */
+  (function buildLensMap() {
+    var fe = document.getElementById('lensMap'); if (!fe) return;
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>"
+      + "<defs>"
+      + "<linearGradient id='gx' x1='0' y1='0' x2='1' y2='0'><stop offset='0%' stop-color='rgb(0,128,0)'/><stop offset='100%' stop-color='rgb(255,128,0)'/></linearGradient>"
+      + "<linearGradient id='gy' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='rgb(128,0,0)'/><stop offset='100%' stop-color='rgb(128,255,0)'/></linearGradient>"
+      + "<radialGradient id='dome' cx='50%' cy='50%' r='50%'><stop offset='0%' stop-color='#fff' stop-opacity='0'/><stop offset='55%' stop-color='#fff' stop-opacity='0'/><stop offset='100%' stop-color='#fff' stop-opacity='1'/></radialGradient>"
+      + "</defs>"
+      + "<rect width='100' height='100' fill='rgb(128,128,0)'/>"
+      + "<rect width='100' height='100' fill='url(#gx)' style='mix-blend-mode:multiply'/>"
+      + "<rect width='100' height='100' fill='url(#gy)' style='mix-blend-mode:multiply'/>"
+      + "<circle cx='50' cy='50' r='50' fill='url(#dome)'/>"
+      + "</svg>";
+    var url = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    fe.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url); fe.setAttribute('href', url);
   })();
 
   /* a tall stitched "world" of her images; each droplet reflects a thin slice
