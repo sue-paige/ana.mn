@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ana.mn — memoria líquida · reflection drift</title>
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<style>
+/* ============================================================================
+   ana.mn — DIRECTION A: "DRIFT + CROSS-FADE"
+   ----------------------------------------------------------------------------
+   The droplets stay fixed on screen (a wet lens layer over the page). What
+   evolves with SCROLL is only what each droplet *reflects*, as if a world is
+   drifting past its curved skin.
+
+   Each droplet carries TWO reflection layers (.reflA / .reflB), each holding
+   one of Ana's images. A continuous, per-droplet "reflection clock" — driven
+   by scroll progress with a unique phase offset & speed per drop — walks along
+   a playlist of her images. At any moment exactly two consecutive images are
+   loaded (one per layer); a long, eased cross-fade dissolves the outgoing one
+   into the incoming one. The src of a layer is only ever swapped while that
+   layer sits at ~0 opacity, so the actual image change is never visible — no
+   flicker, no swap frame. Meanwhile the background-position of each layer
+   DRIFTS continuously, so the reflection also slides as you scroll: a real
+   environment moving past, not a slideshow.
+
+   Performance: ONE passive scroll listener -> sets a flag -> ONE shared rAF.
+   The rAF only writes opacity + background-position (compositor-cheap) and
+   only when scroll actually moved. Idle = zero work. ?scry=0..1 freezes a
+   virtual progress so static screenshots show the reflection has changed.
+   ============================================================================ */
+
+:root{
+  --paper:#d8ddda; --paper-deep:#cdd3cf;
+  --ink:#181c1c; --ink-soft:#454a48; --ink-faint:#8b948f;
+  --line:#bcc4bf; --sage:#8ea090; --denim:#7f93a3;
+  --maxw:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  line-height:1.55;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ===================== PAGE CONTENT (real, scrollable) =================== */
+.topbar{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px clamp(18px,5vw,48px);
+  background:rgba(216,221,218,.82);
+  backdrop-filter:blur(10px) saturate(1.1);
+  -webkit-backdrop-filter:blur(10px) saturate(1.1);
+  border-bottom:1px solid var(--line);
+}
+.topbar .mark{font-family:'Space Mono',monospace;font-weight:700;letter-spacing:.18em;font-size:13px}
+.topbar nav{display:flex;gap:clamp(14px,3vw,30px);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.topbar nav a{color:inherit;text-decoration:none}
+.topbar nav a:hover{color:var(--ink)}
+
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(18px,5vw,48px)}
+
+.hero{padding:clamp(70px,16vh,180px) 0 clamp(40px,8vh,90px)}
+.hero .kicker{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--denim);margin-bottom:22px}
+.hero h1{
+  font-family:'Instrument Serif',Georgia,serif;
+  font-weight:400;font-style:italic;
+  font-size:clamp(56px,12vw,150px);
+  line-height:.92;letter-spacing:-.01em;
+  color:var(--ink);
+}
+.hero h1 em{font-style:normal}
+.hero .sub{margin-top:26px;max-width:46ch;font-size:clamp(15px,2vw,18px);color:var(--ink-soft)}
+
+.body-copy{padding:18px 0 40px;max-width:62ch}
+.body-copy p{margin-bottom:1.2em;font-size:clamp(15px,1.7vw,17.5px);color:var(--ink-soft)}
+.body-copy p .lead{color:var(--ink);font-weight:500}
+.section-label{
+  font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--ink-faint);
+  margin:40px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);
+}
+
+.strip{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  margin:14px 0 70px;
+}
+.strip figure{position:relative;margin:0;aspect-ratio:4/5;overflow:hidden;border-radius:2px;background:var(--paper-deep)}
+.strip img{width:100%;height:100%;object-fit:cover;display:block}
+.strip figcaption{
+  position:absolute;left:8px;bottom:7px;
+  font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:#fff;mix-blend-mode:difference;
+}
+.footer{padding:50px 0 120px;color:var(--ink-faint);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+
+/* ===================== DROPLET OVERLAY LAYER ============================== */
+.dropfield{
+  position:fixed; inset:0; z-index:50;
+  pointer-events:none;            /* page underneath stays fully clickable */
+  overflow:hidden;
+}
+.drop{
+  position:absolute;
+  pointer-events:none;            /* purely decorative; never intercept */
+  will-change:transform;
+}
+
+/* --- contact shadow on the page --- */
+.drop-shadow{
+  position:absolute; left:50%; top:54%;
+  width:106%; height:96%;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,
+      rgba(20,28,26,.30) 0%, rgba(20,28,26,.16) 46%,
+      rgba(20,28,26,.05) 72%, transparent 80%);
+  filter:blur(3px);
+  translate:0 3px;
+}
+
+/* --- the refracting lens: bends + magnifies content behind it --- */
+.drop-lens{
+  position:absolute; inset:0;
+  border-radius:50%;
+  -webkit-backdrop-filter:blur(.4px) brightness(1.05) saturate(1.06) url(#dropFilter);
+  backdrop-filter:blur(.4px) brightness(1.05) saturate(1.06) url(#dropFilter);
+  background:
+    radial-gradient(58% 58% at 50% 44%, rgba(255,255,255,.04), transparent 70%),
+    radial-gradient(120% 120% at 50% 120%, rgba(30,46,42,.10), transparent 55%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.20),
+    inset 0 -7px 12px -6px rgba(20,30,28,.40),
+    inset 0 8px 14px -8px rgba(255,255,255,.55);
+}
+
+/* --- her image: faint environment reflection on the curved skin --- */
+/* TWO layers stacked; we cross-fade between them as scroll advances. Each is a
+   background div (not <img>) so background-position can drift cheaply, and the
+   radial mask fades the reflection toward the rim so it reads as wrapping the
+   dome. mix-blend:screen keeps it a faint glow, never an opaque picture.      */
+.drop-refl{
+  position:absolute; inset:0;
+  border-radius:50%;
+  overflow:hidden;
+  mix-blend-mode:screen;
+  /* radial mask: bright at upper-centre, fades to nothing at the meniscus */
+  -webkit-mask-image:radial-gradient(60% 60% at 50% 40%, #000 0%, rgba(0,0,0,.72) 52%, transparent 80%);
+  mask-image:radial-gradient(60% 60% at 50% 40%, #000 0%, rgba(0,0,0,.72) 52%, transparent 80%);
+}
+.refl-layer{
+  position:absolute; inset:-6%;          /* slight overscan so drift never bares an edge */
+  background-repeat:no-repeat;
+  background-size:152%;                   /* per the spec: ~152% crop */
+  background-position:50% 50%;
+  filter:contrast(1.14) saturate(1.22);
+  transform:rotate(8deg);                 /* curved offset crop reads as a reflection */
+  opacity:0;
+  will-change:opacity, background-position;
+}
+
+/* --- specular + rim + chromatic edge, drawn on top --- */
+.drop-skin{
+  position:absolute; inset:0;
+  border-radius:50%;
+  background:
+    radial-gradient(38% 32% at 34% 28%,
+        rgba(255,255,255,.95) 0%, rgba(255,255,255,.55) 18%, transparent 46%),
+    radial-gradient(16% 13% at 34% 28%,
+        #fff 0%, rgba(255,255,255,.9) 40%, transparent 72%),
+    radial-gradient(60% 60% at 70% 78%,
+        rgba(255,255,255,.18) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%,
+        transparent 60%, rgba(255,255,255,.10) 80%, rgba(255,255,255,.34) 97%, transparent 100%);
+}
+.drop-skin::after{
+  content:""; position:absolute; inset:0; border-radius:50%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 86%, rgba(120,170,255,.28) 93%, transparent 97%),
+    radial-gradient(circle at 50% 50%, transparent 88%, rgba(255,150,200,.22) 95%, transparent 99%);
+  mix-blend-mode:screen;
+  opacity:.7;
+}
+
+/* QA readout chip (only shown when ?scry= present or ?debug) */
+.scry{
+  position:fixed; right:12px; bottom:12px; z-index:60; pointer-events:none;
+  font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.12em;
+  color:var(--ink-soft); background:rgba(216,221,218,.78);
+  border:1px solid var(--line); padding:6px 10px; border-radius:6px;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  display:none; white-space:pre;
+}
+
+/* ===================== ACCESSIBILITY ===================================== */
+@media (prefers-reduced-motion: reduce){
+  /* reflection becomes fully static: JS skips the scroll-driven clock and just
+     paints one resting state. No background-position drift, no cross-fade.    */
+  .refl-layer{transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ SVG FILTERS ============================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="dropFilter" x="-30%" y="-30%" width="160%" height="160%"
+            color-interpolation-filters="sRGB">
+      <feImage id="dropMap" result="MAP"
+        href="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'&gt;&lt;defs&gt;&lt;radialGradient id='rx' cx='50%25' cy='50%25' r='50%25'&gt;&lt;stop offset='0%25' stop-color='rgb(128,128,0)'/&gt;&lt;stop offset='62%25' stop-color='rgb(128,128,0)'/&gt;&lt;stop offset='100%25' stop-color='rgb(128,128,0)' stop-opacity='0'/&gt;&lt;/radialGradient&gt;&lt;linearGradient id='gx' x1='0' y1='0' x2='1' y2='0'&gt;&lt;stop offset='0%25' stop-color='rgb(0,128,0)'/&gt;&lt;stop offset='100%25' stop-color='rgb(255,128,0)'/&gt;&lt;/linearGradient&gt;&lt;linearGradient id='gy' x1='0' y1='0' x2='0' y2='1'&gt;&lt;stop offset='0%25' stop-color='rgb(128,0,0)'/&gt;&lt;stop offset='100%25' stop-color='rgb(128,255,0)'/&gt;&lt;/linearGradient&gt;&lt;radialGradient id='dome' cx='50%25' cy='50%25' r='50%25'&gt;&lt;stop offset='0%25' stop-color='%23fff' stop-opacity='0'/&gt;&lt;stop offset='55%25' stop-color='%23fff' stop-opacity='0'/&gt;&lt;stop offset='100%25' stop-color='%23fff' stop-opacity='1'/&gt;&lt;/radialGradient&gt;&lt;/defs&gt;&lt;rect width='100' height='100' fill='rgb(128,128,0)'/&gt;&lt;rect width='100' height='100' fill='url(%23gx)' style='mix-blend-mode:multiply'/&gt;&lt;rect width='100' height='100' fill='url(%23gy)' style='mix-blend-mode:multiply'/&gt;&lt;circle cx='50' cy='50' r='50' fill='url(%23dome)'/&gt;&lt;/svg&gt;"/>
+      <feDisplacementMap id="dropDisp" in="SourceGraphic" in2="MAP"
+        scale="26" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- ============================ PAGE CONTENT ============================ -->
+<header class="topbar">
+  <div class="mark">ANA.MN</div>
+  <nav><a href="#">Work</a><a href="#">Liquid</a><a href="#">About</a><a href="#">Contact</a></nav>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker">Ana · selected works · 2021—2026</div>
+    <h1><em>memoria</em><br>líquida</h1>
+    <p class="sub">An archive of pieces about water, memory, and the things that
+       refuse to hold their shape. Scroll — and watch what the surface keeps.</p>
+  </section>
+
+  <section class="wrap body-copy">
+    <div class="section-label">Statement</div>
+    <p><span class="lead">Everything here was once submerged.</span> The images
+       began as photographs taken under shallow water, then re-exposed, bled,
+       and let to dry into the paper. What you read through the droplets is the
+       same text the droplets are reading — a small lens of the page beneath
+       them, bent and brightened, the way a bead of water on a window magnifies
+       a single word until it floats free of its sentence.</p>
+    <p>Look long enough and the drops seem to remember a room you cannot see.
+       On their wet skin something pale keeps drifting past — a green flare, a
+       breath of ink, a wash of pastel — never quite the same thing twice. They
+       are reflecting a world that moves while you scroll, the way a raindrop on
+       a train window holds a sliver of every field it passes.</p>
+    <p>The series moves between pink-green chemistry and deep ink blue, the
+       palette of a darkroom flooded by accident. Each frame is a held breath:
+       a couple suspended, a neon caught in glass, a portrait softened to pastel
+       static. Read slowly. The surface is doing half the work.</p>
+    <p>None of this is decoration — it is the work asking you to look at how
+       looking itself distorts what is kept. A reflection is never the thing; it
+       is the thing, plus the curve of the water, plus the time of day, plus
+       wherever you happen to be standing when you lean in to see.</p>
+  </section>
+
+  <section class="wrap">
+    <div class="section-label">Plates · I—VI</div>
+    <div class="strip" id="strip">
+      <figure><img src="../assets/img/submerge.webp" alt="submerge"><figcaption>submerge</figcaption></figure>
+      <figure><img src="../assets/img/greenneon.webp" alt="greenneon"><figcaption>greenneon</figcaption></figure>
+      <figure><img src="../assets/img/inkwater.webp" alt="inkwater"><figcaption>inkwater</figcaption></figure>
+      <figure><img src="../assets/img/pastel.webp" alt="pastel"><figcaption>pastel</figcaption></figure>
+      <figure><img src="../assets/img/bloom.webp" alt="bloom"><figcaption>bloom</figcaption></figure>
+      <figure><img src="../assets/img/burst.webp" alt="burst"><figcaption>burst</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="wrap body-copy">
+    <div class="section-label">Process</div>
+    <p>Each plate is a single exposure, never composited. The water did the
+       collage. When the print dried, the emulsion cracked into a map of where
+       the surface had been deepest — and it is those cracks the droplets seem
+       to find, magnify, and quietly carry away with them as you go.</p>
+    <p>Keep scrolling. The reflections you have already passed are still up there
+       on the glass, slowly giving way to the ones below.</p>
+  </section>
+
+  <section class="wrap">
+    <div class="section-label">Plates · VII—X</div>
+    <div class="strip" id="strip2">
+      <figure><img src="../assets/img/particle.webp" alt="particle"><figcaption>particle</figcaption></figure>
+      <figure><img src="../assets/img/field.webp" alt="field"><figcaption>field</figcaption></figure>
+      <figure><img src="../assets/img/headphones.webp" alt="headphones"><figcaption>headphones</figcaption></figure>
+      <figure><img src="../assets/img/veil.webp" alt="veil"><figcaption>veil</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="wrap footer">© ana — memoria líquida — the surface remembers</section>
+</main>
+
+<!-- ============================ DROPLET LAYER =========================== -->
+<div class="dropfield" id="dropfield" aria-hidden="true"></div>
+
+<div class="scry" id="scry"></div>
+
+<script>
+(function(){
+  "use strict";
+  var field  = document.getElementById('dropfield');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- QA hook: ?scry=0..1 freezes a virtual scroll progress -----------
+  var params  = new URLSearchParams(location.search);
+  var scryRaw = params.get('scry');
+  var scryVal = scryRaw != null ? Math.max(0, Math.min(1, parseFloat(scryRaw)||0)) : null;
+  var scryLocked = scryVal != null;          // when locked, ignore real scroll
+  var debug   = scryLocked || params.has('debug');
+
+  // ---- Reflection playlist: Ana's images (webp). Each droplet walks this
+  //      list with its own phase + speed, so they never share a frame. -----
+  var PLAYLIST = [
+    '../assets/img/submerge.webp',
+    '../assets/img/greenneon.webp',
+    '../assets/img/inkwater.webp',
+    '../assets/img/pastel.webp',
+    '../assets/img/bloom.webp',
+    '../assets/img/burst.webp',
+    '../assets/img/particle.webp',
+    '../assets/img/field.webp',
+    '../assets/img/headphones.webp',
+    '../assets/img/veil.webp'
+  ];
+  var N = PLAYLIST.length;
+
+  // Preload so a hidden-layer src swap is instantaneous (no half-loaded frame).
+  PLAYLIST.forEach(function(src){ var im = new Image(); im.src = src; });
+
+  // ---- Droplet spec. vx/vy in viewport %, d = diameter px.
+  //   phase   : where this drop starts in the playlist (offsets the clock)
+  //   span    : how many images it travels across over one full page scroll
+  //             (varied -> some drift faster than others; never in unison)
+  //   start   : index of the playlist image it begins on
+  //   opa     : peak reflection opacity (kept low: ~.20–.30, per spec)
+  //   driftX/Y: how far the background-position slides over the scroll (px-ish %)
+  var SPEC = [
+    {vx:22, vy:33, d:58, phase:0.00, span:3.0, start:0, opa:0.28, driftX: 9, driftY:-5},
+    {vx:71, vy:27, d:40, phase:0.37, span:4.0, start:2, opa:0.24, driftX:-7, driftY:-6},
+    {vx:38, vy:56, d:48, phase:0.13, span:2.6, start:5, opa:0.27, driftX: 6, driftY: 7},
+    {vx:63, vy:62, d:34, phase:0.61, span:5.0, start:7, opa:0.22, driftX:-8, driftY: 4},
+    {vx:17, vy:78, d:54, phase:0.24, span:3.4, start:3, opa:0.26, driftX: 7, driftY:-7},
+    {vx:84, vy:72, d:40, phase:0.83, span:4.4, start:8, opa:0.23, driftX:-6, driftY: 6}
+  ];
+
+  var drops = [];
+
+  SPEC.forEach(function(s){
+    var el = document.createElement('div');
+    el.className = 'drop';
+    el.style.width  = s.d + 'px';
+    el.style.height = s.d + 'px';
+    el.style.left = 'calc(' + s.vx + 'vw - ' + (s.d/2) + 'px)';
+    el.style.top  = 'calc(' + s.vy + 'vh - ' + (s.d/2) + 'px)';
+
+    el.innerHTML =
+      '<div class="drop-shadow"></div>' +
+      '<div class="drop-lens"></div>' +
+      '<div class="drop-refl">' +
+        '<div class="refl-layer rA"></div>' +
+        '<div class="refl-layer rB"></div>' +
+      '</div>' +
+      '<div class="drop-skin"></div>';
+
+    field.appendChild(el);
+
+    var rA = el.querySelector('.rA');
+    var rB = el.querySelector('.rB');
+
+    drops.push({
+      base:s, rA:rA, rB:rB,
+      // which playlist index each layer currently HOLDS (-1 = unloaded)
+      idxA:-1, idxB:-1,
+      // last-applied state, to skip redundant style writes
+      lastFloor:-999, lastTop:'-'
+    });
+  });
+
+  function imgAt(i){ return PLAYLIST[((i % N) + N) % N]; }
+  function setLayerImg(layer, idx){
+    layer.style.backgroundImage = "url('" + imgAt(idx) + "')";
+  }
+
+  // smoothstep for the cross-fade: eases in & out so there is never a linear
+  // "edge" to the transition — the dissolve has no perceptible start or end.
+  function smooth(t){ return t*t*(3 - 2*t); }
+
+  // ---------------------------------------------------------------------
+  // CORE: given global progress p (0..1) render every droplet's reflection.
+  //   Per drop we build a "clock" position = start + phase + p*span. The
+  //   integer floor picks the CURRENT image; the next integer is the one
+  //   dissolving in. The fraction (eased) is the cross-fade amount. Because
+  //   each layer's src is only changed while that layer is at ~0 opacity,
+  //   the image substitution is invisible — only a slow dissolve is seen.
+  // ---------------------------------------------------------------------
+  function render(p){
+    for(var i=0;i<drops.length;i++){
+      var d = drops[i], s = d.base;
+
+      // continuous position along the playlist for this droplet
+      var clock = s.start + s.phase + p * s.span;
+      var floor = Math.floor(clock);
+      var frac  = clock - floor;            // 0..1 cross-fade progress
+
+      // Which playlist indices the two layers should currently HOLD.
+      // Convention: when (floor) is EVEN, layer A holds the "current" (floor)
+      // image and B holds "next" (floor+1); when ODD it flips. This way the
+      // layer that is fading OUT keeps its image until it has reached ~0,
+      // and the one that just hit 0 is the one we re-point to floor+2 next.
+      var aIdx, bIdx, aOp, bOp;
+      if((floor & 1) === 0){
+        aIdx = floor;     bIdx = floor + 1;
+        aOp  = 1 - frac;  bOp  = frac;
+      } else {
+        aIdx = floor + 1; bIdx = floor;
+        aOp  = frac;      bOp  = 1 - frac;
+      }
+
+      // Only swap a layer's source when it is (nearly) invisible -> no flicker.
+      if(d.idxA !== aIdx && (aOp < 0.02 || d.idxA === -1)){ setLayerImg(d.rA, aIdx); d.idxA = aIdx; }
+      if(d.idxB !== bIdx && (bOp < 0.02 || d.idxB === -1)){ setLayerImg(d.rB, bIdx); d.idxB = bIdx; }
+      // Edge case on first paint / big scry jumps: force-load if still wrong.
+      if(d.idxA !== aIdx){ setLayerImg(d.rA, aIdx); d.idxA = aIdx; }
+      if(d.idxB !== bIdx){ setLayerImg(d.rB, bIdx); d.idxB = bIdx; }
+
+      // Eased opacities, scaled to the drop's faint peak. The two never sum to
+      // a hard 1 instant — smoothstep keeps the hand-off gentle.
+      var ease = smooth(frac);
+      var opA  = (((floor & 1) === 0) ? (1 - ease) : ease) * s.opa;
+      var opB  = (((floor & 1) === 0) ? ease : (1 - ease)) * s.opa;
+      d.rA.style.opacity = opA.toFixed(3);
+      d.rB.style.opacity = opB.toFixed(3);
+
+      // DRIFT: background-position slides continuously with global progress so
+      // the reflection also "moves past", independent of the cross-fade beats.
+      // Sine on a phase-shifted clock = a gentle back-and-forth wander rather
+      // than a linear pan, so it reads as a world swaying past, not a slide.
+      var wander = clock * 0.9 + s.phase * 6.283;
+      var bx = 50 + s.driftX * Math.sin(wander);
+      var by = 50 + s.driftY * Math.cos(wander * 0.8);
+      var pos = bx.toFixed(2) + '% ' + by.toFixed(2) + '%';
+      // both layers share the drift so the dissolve doesn't reveal a parallax jump
+      d.rA.style.backgroundPosition = pos;
+      d.rB.style.backgroundPosition = pos;
+    }
+  }
+
+  // ---- reduced motion: paint ONE static resting reflection, then stop. ----
+  if(reduce && !scryLocked){
+    render(0.18);                 // a pleasant fixed state; no scroll coupling
+    return;
+  }
+
+  // ---------------------------------------------------------------------
+  // SCROLL -> ONE rAF.  Passive listener flips a flag; rAF reads scrollY,
+  // maps to 0..1, renders, and only re-renders while progress keeps changing.
+  // Idle = no rAF scheduled = zero work.
+  // ---------------------------------------------------------------------
+  var queued = false, lastP = -1;
+
+  function progressFromScroll(){
+    var doc = document.documentElement;
+    var max = (doc.scrollHeight - window.innerHeight) || 1;
+    return Math.max(0, Math.min(1, window.scrollY / max));
+  }
+
+  function tick(){
+    queued = false;
+    var p = scryLocked ? scryVal : progressFromScroll();
+    if(Math.abs(p - lastP) < 0.0005) return;   // sub-pixel: nothing to do
+    lastP = p;
+    render(p);
+    if(debug){
+      document.getElementById('scry').textContent =
+        'scry ' + p.toFixed(3) + (scryLocked ? '  [locked]' : '');
+    }
+  }
+  function onScroll(){ if(!queued){ queued = true; requestAnimationFrame(tick); } }
+
+  if(debug){ document.getElementById('scry').style.display = 'block'; }
+
+  if(scryLocked){
+    // QA: render the frozen virtual progress once. No scroll coupling at all.
+    render(scryVal);
+    document.getElementById('scry').textContent = 'scry ' + scryVal.toFixed(3) + '  [locked]';
+    // (intentionally do NOT bind scroll so screenshots stay deterministic)
+  } else {
+    window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll, {passive:true});
+    // first paint
+    requestAnimationFrame(tick);
+  }
+
+  // ---- feature fallback: if backdrop-filter url() isn't supported, the lens
+  //      still shows blur+brightness so droplets remain a wet bead. ----------
+  try{
+    var ok = CSS.supports('backdrop-filter','url(#dropFilter)') ||
+             CSS.supports('-webkit-backdrop-filter','url(#dropFilter)');
+    if(!ok){
+      var lenses = field.querySelectorAll('.drop-lens');
+      for(var k=0;k<lenses.length;k++){
+        lenses[k].style.backdropFilter = 'blur(.6px) brightness(1.08) saturate(1.1)';
+        lenses[k].style.webkitBackdropFilter = 'blur(.6px) brightness(1.08) saturate(1.1)';
+      }
+    }
+  }catch(_){}
+})();
+</script>
+</body>
+</html>

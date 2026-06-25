@@ -378,14 +378,45 @@
     if (fe) { fe.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url); fe.setAttribute('href', url); }
   })();
 
-  var REFL = ['url(/assets/img/submerge.webp)', 'url(/assets/img/greenneon.webp)', 'url(/assets/img/inkwater.webp)'];
+  /* a tall stitched "world" of her images; each droplet reflects a thin slice
+     that PANS as you scroll — as if mirroring a scene drifting past (Direction B) */
+  var WORLD = ['submerge', 'inkwater', 'greenneon', 'bloom', 'pastel', 'field', 'burst', 'particle', 'veil'];
+  var TILE_W = 240, TILE_H = 300, FADE = 150, FRAMES = WORLD.length, STRIP_H = TILE_H * (FRAMES + 1);
+  var stripURL = null, STRIP_READY = false;
+  function buildStrip(images) {
+    var cv = document.createElement('canvas'); cv.width = TILE_W; cv.height = STRIP_H;
+    var g = cv.getContext('2d'); if (!g) return null;
+    g.fillStyle = '#000'; g.fillRect(0, 0, TILE_W, STRIP_H);
+    var tile = document.createElement('canvas'); tile.width = TILE_W; tile.height = TILE_H + FADE * 2;
+    var tg = tile.getContext('2d');
+    function frameAt(img, yTop) {
+      if (!img) return;
+      var bandH = TILE_H + FADE * 2; tg.clearRect(0, 0, TILE_W, bandH);
+      var iw = img.naturalWidth, ih = img.naturalHeight, s = Math.max(TILE_W / iw, bandH / ih);
+      var dw = iw * s, dh = ih * s;
+      tg.globalCompositeOperation = 'source-over'; tg.globalAlpha = 1;
+      tg.drawImage(img, (TILE_W - dw) / 2, (bandH - dh) / 2, dw, dh);
+      tg.globalCompositeOperation = 'destination-in';
+      var grad = tg.createLinearGradient(0, 0, 0, bandH);
+      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(FADE / bandH, 'rgba(0,0,0,1)');
+      grad.addColorStop(1 - FADE / bandH, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+      tg.fillStyle = grad; tg.fillRect(0, 0, TILE_W, bandH);
+      tg.globalCompositeOperation = 'source-over';
+      g.globalCompositeOperation = 'lighter'; g.drawImage(tile, 0, yTop - FADE);
+    }
+    for (var i = 0; i < FRAMES; i++) frameAt(images[i], i * TILE_H);
+    frameAt(images[0], FRAMES * TILE_H);  // wrap copy for seamless loop
+    g.globalCompositeOperation = 'source-over';
+    try { return cv.toDataURL('image/webp', 0.82); } catch (e) { try { return cv.toDataURL('image/png'); } catch (e2) { return null; } }
+  }
+
   var SPEC = [
-    { x: 16, y: 24, d: 96, r: 0 },
-    { x: 74, y: 18, d: 74, r: 1 },
-    { x: 33, y: 48, d: 118, r: 2 },
-    { x: 85, y: 44, d: 66, r: 0 },
-    { x: 23, y: 72, d: 100, r: 1 },
-    { x: 65, y: 80, d: 84, r: 2 }
+    { x: 16, y: 24, d: 96, rate: 0.85, phase: 0.00 },
+    { x: 74, y: 18, d: 74, rate: 1.20, phase: 0.42 },
+    { x: 33, y: 48, d: 118, rate: 0.70, phase: 0.18 },
+    { x: 85, y: 44, d: 66, rate: 1.05, phase: 0.66 },
+    { x: 23, y: 72, d: 100, rate: 0.92, phase: 0.30 },
+    { x: 65, y: 80, d: 84, rate: 1.35, phase: 0.80 }
   ];
   if (window.innerWidth < 620) SPEC = [SPEC[0], SPEC[2], SPEC[4], SPEC[5]];  // lighter on phones
 
@@ -395,12 +426,52 @@
     el.className = 'drop';
     el.style.left = s.x + 'vw'; el.style.top = s.y + 'vh';
     el.style.setProperty('--d', s.d + 'px');
-    el.style.setProperty('--refl', REFL[s.r % REFL.length]);
-    el.innerHTML = '<span class="lens"></span><span class="reflect"></span><span class="body-g"></span><span class="rim"></span><span class="spec"></span><span class="ripple"></span>';
+    el.innerHTML = '<span class="lens"></span><span class="reflect2"></span><span class="reflect"></span><span class="body-g"></span><span class="rim"></span><span class="spec"></span><span class="ripple"></span>';
     el._w = 0.4 + (s.d / 130); el._yv = s.y; el._d = s.d;
+    el._rate = s.rate; el._phase = s.phase; el._bgH = Math.round(s.d * STRIP_H / TILE_W);  // uniform scale (no squish)
+    el._refl = el.querySelector('.reflect'); el._refl2 = el.querySelector('.reflect2');
     el.addEventListener('animationend', function () { el.classList.remove('splat'); });
     drops.push(el); layer.appendChild(el);
   });
+
+  /* load her images -> build the strip -> apply to droplets + first paint */
+  function applyStrip() {
+    if (!stripURL) return;
+    for (var i = 0; i < drops.length; i++) {
+      var d = drops[i], u = "url('" + stripURL + "')";
+      d._refl.style.backgroundImage = u; d._refl2.style.backgroundImage = u;
+      d._refl.style.backgroundSize = d._d + 'px ' + d._bgH + 'px';                               // uniform: width = droplet width
+      d._refl2.style.backgroundSize = Math.round(d._d * 1.12) + 'px ' + Math.round(d._bgH * 1.12) + 'px';
+    }
+    reflPaint();
+  }
+  (function loadWorld() {
+    var loaded = 0, imgs = new Array(FRAMES);
+    function done() { if (loaded < FRAMES) return; stripURL = buildStrip(imgs); STRIP_READY = !!stripURL; if (STRIP_READY) applyStrip(); }
+    WORLD.forEach(function (name, i) {
+      var im = new Image();
+      im.onload = function () { imgs[i] = im; loaded++; done(); };
+      im.onerror = function () { loaded++; done(); };
+      im.src = '/assets/img/' + name + '.webp';
+    });
+  })();
+
+  function reflPaint() {
+    if (!STRIP_READY) return;
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var p = reduce ? 0.12 : (max > 0 ? (window.pageYOffset / max) : 0);
+    for (var i = 0; i < drops.length; i++) {
+      var d = drops[i];
+      var span = d._bgH * FRAMES / (FRAMES + 1);
+      var travel = p * 1.15 * d._rate + d._phase; var frac = travel - Math.floor(travel);
+      d._refl.style.setProperty('--bgy', (-(frac * span)).toFixed(2) + 'px');
+      var span2 = (d._bgH * 1.12) * FRAMES / (FRAMES + 1);
+      var travel2 = p * 1.15 * d._rate * 0.55 + d._phase + 0.5; var frac2 = travel2 - Math.floor(travel2);
+      d._refl2.style.setProperty('--bgy2', (frac2 * span2).toFixed(2) + 'px');
+    }
+  }
+  var rTick = false;
+  window.addEventListener('scroll', function () { if (!rTick) { rTick = true; requestAnimationFrame(function () { rTick = false; reflPaint(); }); } }, { passive: true });
 
   /* footer-avoid: push droplets up off the contact panel so it stays unobscured */
   var dContact = document.getElementById('contact');
@@ -524,7 +595,9 @@
   var sphere = document.getElementById('orbSphere');
   var envA = document.getElementById('orbEnvA');
   var envB = document.getElementById('orbEnvB');
-  var meltDisp = document.getElementById('orbMeltDisp');
+  var meltTurbC = document.getElementById('meltTurbCoarse'), meltTurbF = document.getElementById('meltTurbFine');
+  var meltDispC = document.getElementById('meltDispCoarse'), meltDispF = document.getElementById('meltDispFine');
+  var meltGoo = document.getElementById('meltGoo');
   if (!orb || !sphere || !envA || !envB) return;
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
@@ -603,23 +676,38 @@
 
   /* liquid-melt image cycle — the chrome liquefies and reforms with the next image */
   var meltRaf = 0, meltStart = 0, nextName = null, melting = false;
-  var MELT_DUR = 1700, MELT_PEAK = 50;
+  var MELT_DUR = 1700, PEAK_COARSE = 138, PEAK_FINE = 58, PEAK_GOO = 7.0;
+  function warpReset() {
+    if (meltDispC) meltDispC.setAttribute('scale', '0');
+    if (meltDispF) meltDispF.setAttribute('scale', '0');
+    if (meltGoo) meltGoo.setAttribute('stdDeviation', '0');
+  }
+  function applyWarp(p, churn) {                       // violent + squiggly churn
+    var bell = Math.sin(Math.PI * (p < 0 ? 0 : p > 1 ? 1 : p)), bell2 = bell * bell;
+    if (meltDispC) meltDispC.setAttribute('scale', (PEAK_COARSE * bell).toFixed(2));
+    if (meltDispF) meltDispF.setAttribute('scale', (PEAK_FINE * bell2).toFixed(2));
+    if (meltGoo) meltGoo.setAttribute('stdDeviation', (PEAK_GOO * bell).toFixed(2));
+    var bfC = 0.012 + 0.038 * bell + Math.sin(churn * 6.2831) * 0.010;
+    if (meltTurbC) { meltTurbC.setAttribute('baseFrequency', bfC.toFixed(4) + ' ' + (bfC * 1.18).toFixed(4)); meltTurbC.setAttribute('seed', String(1 + Math.floor(churn * 37) % 997)); }
+    var bfF = 0.028 + 0.030 * bell + Math.sin(churn * 6.2831 * 1.7 + 1.3) * 0.012;
+    if (meltTurbF) { meltTurbF.setAttribute('baseFrequency', bfF.toFixed(4) + ' ' + (bfF * 1.35).toFixed(4)); meltTurbF.setAttribute('seed', String(13 + Math.floor(churn * 53) % 991)); }
+  }
   function meltCancel() {
     if (meltRaf) { cancelAnimationFrame(meltRaf); meltRaf = 0; }
-    if (melting) { sphere.style.filter = 'none'; if (meltDisp) meltDisp.setAttribute('scale', '0'); curEnv.style.opacity = '1'; stgEnv.style.opacity = '0'; melting = false; }
+    if (melting) { sphere.style.filter = 'none'; warpReset(); curEnv.style.opacity = '1'; stgEnv.style.opacity = '0'; melting = false; }
   }
   function meltFrame(t) {
     if (!meltStart) meltStart = t;
-    var p = (t - meltStart) / MELT_DUR;
+    var p = (t - meltStart) / MELT_DUR, churn = (t - meltStart) / 1000;
     if (p >= 1) {
-      sphere.style.filter = 'none'; if (meltDisp) meltDisp.setAttribute('scale', '0');
+      sphere.style.filter = 'none'; warpReset();
       curEnv.style.opacity = '0'; stgEnv.style.opacity = '1';
       var tmp = curEnv; curEnv = stgEnv; stgEnv = tmp;        // staged is now current
       melting = false; meltRaf = 0; return;
     }
-    var e = Math.sin(Math.PI * p); e = e * e * (3 - 2 * e);   // wave swell 0..1..0
-    if (meltDisp) meltDisp.setAttribute('scale', (e * MELT_PEAK).toFixed(1));
-    var f = p * p * (3 - 2 * p);                              // smooth cross-fade old->next
+    applyWarp(p, churn);
+    /* cross-fade concentrated in the violent middle so the swap is buried */
+    var f = (p - 0.28) / 0.44; f = f < 0 ? 0 : f > 1 ? 1 : f; f = f * f * (3 - 2 * f);
     curEnv.style.opacity = (1 - f).toFixed(3);
     stgEnv.style.opacity = f.toFixed(3);
     meltRaf = requestAnimationFrame(meltFrame);

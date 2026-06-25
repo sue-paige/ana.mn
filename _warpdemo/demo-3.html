@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ana.mn — chrome sphere · melt warp (Direction C: chaotic glitch-melt)</title>
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<style>
+  :root{
+    --paper:#d8ddda;
+    --ink:#181c1c;
+    --denim:#7f93a3;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+    display:grid;
+    place-items:center;
+    min-height:100vh;
+  }
+
+  /* tiny corner labels so the demo reads as a study, never blocks the orb */
+  .tag{
+    position:fixed; z-index:30;
+    font-family:'Space Mono',monospace;
+    font-size:10px; letter-spacing:.14em; text-transform:lowercase;
+    color:rgba(24,28,28,.5);
+    pointer-events:none;
+  }
+  .tag.tl{ top:12px; left:14px; }
+  .tag.bl{ bottom:12px; left:14px; }
+  .tag.br{ bottom:12px; right:14px; text-transform:none; }
+
+  /* =================================================================== */
+  /*  THE STAGE — plain cool ground with a faint vignette to seat the ball */
+  /* =================================================================== */
+  #orb-stage{
+    position:relative;
+    width:min(74vmin,460px);
+    height:min(74vmin,460px);
+    display:grid; place-items:center;
+    background:
+      radial-gradient(120% 90% at 50% 14%, rgba(255,255,255,.18), transparent 60%),
+      radial-gradient(120% 120% at 50% 118%, rgba(24,28,28,.10), transparent 55%);
+  }
+
+  /* the orb wrapper carries the contact shadow only (never re-rendered) */
+  #orb{
+    position:relative;
+    width:100%; height:100%;
+    will-change:transform;
+    filter:
+      drop-shadow(0 26px 30px rgba(24,28,28,.30))
+      drop-shadow(0 6px 10px rgba(24,28,28,.22));
+  }
+
+  /* -------------------------------------------------------------------
+     .orb-sphere — the circle everything is clipped to.
+     IDLE: no filter (cheap). DURING MELT: filter:url(#orbMelt) is set in JS
+     and the whole ball is liquefied + thrashed by animated turbulence.
+     ------------------------------------------------------------------- */
+  .orb-sphere{
+    position:absolute; inset:0;
+    border-radius:50%;
+    overflow:hidden;
+    isolation:isolate;
+    will-change:transform,filter;
+    transform:translateZ(0);
+  }
+
+  /* --- reflected environment: her image, sphere-wrapped via SVG --- */
+  .orb-env{
+    position:absolute;
+    /* oversized & centred so neither the sphere-wrap NOR the violent melt
+       displacement can ever expose an edge of the image */
+    left:-42%; top:-42%; width:184%; height:184%;
+    background-size:cover;
+    background-position:center;
+    filter:url(#sphereWrap) contrast(1.16) saturate(1) brightness(1.34);
+    transform:translateZ(0);
+    backface-visibility:hidden;
+  }
+  /* B layer starts hidden; cross-fades up DURING the melt */
+  #orbEnvB{ opacity:0; }
+
+  /* --- CHROME BODY: turns the photo into polished metal ------------- */
+  .orb-chrome{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(circle at 50% 50%,
+        rgba(0,0,0,0)        46%,
+        rgba(10,13,17,.30)   60%,
+        rgba(7,10,14,.66)    78%,
+        rgba(4,6,9,.90)      92%,
+        rgba(3,4,6,.97)     100%),
+      radial-gradient(ellipse 92% 30% at 50% 60%,
+        rgba(6,9,13,.55), rgba(6,9,13,0) 70%),
+      radial-gradient(circle at 42% 36%,
+        rgba(120,140,158,.26),
+        rgba(110,126,120,.13) 48%,
+        rgba(8,12,16,.38)    100%);
+    mix-blend-mode:multiply;
+  }
+  .orb-tone{
+    position:absolute; inset:0;
+    background:radial-gradient(circle at 46% 40%,
+      rgba(20,26,32,.22) 0%, rgba(14,19,24,.40) 70%, rgba(6,9,12,.60) 100%);
+    mix-blend-mode:multiply;
+  }
+  .orb-bounce{
+    position:absolute; inset:0;
+    background:radial-gradient(ellipse 56% 30% at 50% 88%,
+      rgba(216,221,218,.55), rgba(190,200,200,.12) 55%, rgba(216,221,218,0) 72%);
+    mix-blend-mode:screen;
+  }
+  .orb-crown{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 58% 40% at 46% 16%,
+        rgba(255,255,255,.98), rgba(232,240,248,.50) 34%, rgba(255,255,255,0) 60%),
+      radial-gradient(ellipse 120% 60% at 50% -10%,
+        rgba(206,222,236,.55), rgba(206,222,236,0) 50%);
+    mix-blend-mode:screen;
+  }
+  .orb-spec{
+    position:absolute;
+    left:31%; top:15%; width:15%; height:11%;
+    background:radial-gradient(circle at 50% 50%,
+      #ffffff 0%, rgba(255,255,255,.9) 26%, rgba(255,255,255,0) 68%);
+    mix-blend-mode:screen;
+  }
+  .orb-rim{
+    position:absolute; inset:0; border-radius:50%;
+    box-shadow:
+      inset 0 1px 0 1px rgba(255,255,255,.22),
+      inset 0 3px 14px rgba(255,255,255,.34),
+      inset 0 -8px 20px rgba(216,221,218,.26),
+      inset 0 0 30px rgba(4,6,9,.78),
+      inset 5px -5px 36px rgba(4,6,9,.52);
+  }
+  .orb-lip{
+    position:absolute; inset:0; border-radius:50%;
+    box-shadow:
+      0 0 0 1px rgba(8,11,15,.55),
+      inset 0 0 0 1px rgba(255,255,255,.16);
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .orb-sphere{ filter:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===================== SVG FILTERS (draw nothing) ===================== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- sphereWrap: radial sphere-normal displacement fisheyes the flat
+           image onto a ball. Normal map built in JS (canvas) -> #sphereMapImg. -->
+      <filter id="sphereWrap" x="-25%" y="-25%" width="150%" height="150%"
+              color-interpolation-filters="sRGB">
+        <feImage id="sphereMapImg" result="nmap"
+                 x="0" y="0" width="100%" height="100%"
+                 preserveAspectRatio="none"/>
+        <feDisplacementMap in="SourceGraphic" in2="nmap"
+                           scale="210"
+                           xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+
+      <!-- ===========================================================
+           orbMelt — DIRECTION C: CHAOTIC GLITCH-MELT
+           The whole sphere is run through TWO chained turbulence
+           displacements:
+             1) MELT  — big, churning multi-octave fractal noise. Its
+                baseFrequency, numOctaves, seed and displacement scale are
+                ALL re-written by JS every frame during the ~1.6s melt, so
+                the squiggle PATTERN itself thrashes & re-knits (not a static
+                noise just scaled up). High scale = violent liquefaction.
+             2) SMEAR — a higher-frequency, mostly-horizontal turbulence
+                that adds a fine directional databent "tear" on top, also
+                animated, so the chrome looks like it glitches as it liquefies.
+           Both default to scale 0 / harmless freq so applying the filter
+           when idle (never happens here) would be a no-op.
+           =========================================================== -->
+      <filter id="orbMelt" x="-60%" y="-60%" width="220%" height="220%"
+              color-interpolation-filters="sRGB"
+              primitiveUnits="userSpaceOnUse">
+        <!-- 1. big churning melt field -->
+        <feTurbulence id="meltNoise" type="fractalNoise"
+                      baseFrequency="0.012 0.018"
+                      numOctaves="3" seed="7"
+                      stitchTiles="noStitch" result="melt"/>
+        <feDisplacementMap id="meltDisp" in="SourceGraphic" in2="melt"
+                           scale="0"
+                           xChannelSelector="R" yChannelSelector="G"
+                           result="melted"/>
+        <!-- 2. fine directional glitch-smear on top of the melt -->
+        <feTurbulence id="smearNoise" type="turbulence"
+                      baseFrequency="0.09 0.015"
+                      numOctaves="2" seed="31"
+                      stitchTiles="noStitch" result="smear"/>
+        <feDisplacementMap id="smearDisp" in="melted" in2="smear"
+                           scale="0"
+                           xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- ===================== THE ORB ===================== -->
+  <div id="orb-stage" aria-hidden="true">
+    <div id="orb">
+      <div class="orb-sphere" id="orbSphere">
+        <div class="orb-env" id="orbEnvA"></div>
+        <div class="orb-env" id="orbEnvB"></div>
+        <div class="orb-tone"></div>
+        <div class="orb-chrome"></div>
+        <div class="orb-bounce"></div>
+        <div class="orb-crown"></div>
+        <div class="orb-spec"></div>
+        <div class="orb-rim"></div>
+        <div class="orb-lip"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tag tl" id="tagState">melt warp · idle</div>
+  <div class="tag bl" id="tagImg"></div>
+  <div class="tag br">direction c · chaotic glitch-melt</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= images: pick ONE at random per load ================= */
+  var IMAGES = ["submerge","greenneon","inkwater","pastel","bloom",
+                "burst","particle","field","headphones","veil"];
+  function imgPath(name){ return "../assets/img/" + name + ".webp"; }
+
+  var Q       = new URLSearchParams(location.search);
+  var PIN_IMG = Q.get("img");
+  var WARP_Q  = Q.get("warp");                 /* "0".."1" -> freeze hook */
+  var FREEZE  = (WARP_Q !== null && WARP_Q !== "");
+  var FREEZE_P = FREEZE ? Math.max(0, Math.min(1, parseFloat(WARP_Q) || 0)) : 0;
+
+  function pickImg(){
+    if (PIN_IMG && IMAGES.indexOf(PIN_IMG) !== -1) return PIN_IMG;
+    return IMAGES[(Math.random()*IMAGES.length)|0];
+  }
+
+  var reduce = window.matchMedia &&
+               window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ================= DOM handles ================= */
+  var sphere = document.getElementById("orbSphere");
+  var envA   = document.getElementById("orbEnvA");
+  var envB   = document.getElementById("orbEnvB");
+  var tagState = document.getElementById("tagState");
+  var tagImg   = document.getElementById("tagImg");
+
+  /* filter primitive handles we animate live */
+  var meltNoise = document.getElementById("meltNoise");
+  var meltDisp  = document.getElementById("meltDisp");
+  var smearNoise= document.getElementById("smearNoise");
+  var smearDisp = document.getElementById("smearDisp");
+
+  /* current visible env layer ("A" or "B") + which image it shows */
+  var front = "A";
+  var curImg = pickImg();
+
+  envA.style.backgroundImage = "url('" + imgPath(curImg) + "')";
+  tagImg.textContent = "reflecting · " + curImg;
+
+  /* =================================================================== */
+  /*  buildSphereMap(): canvas radial normal map for #sphereWrap feImage   */
+  /*  R = x-shift, G = y-shift, growing OUTWARD toward the rim so the flat  */
+  /*  image fisheyes onto a sphere (clear centre, pinched horizon).        */
+  /* =================================================================== */
+  function buildSphereMap(){
+    var S = 256, c = document.createElement("canvas");
+    c.width = S; c.height = S;
+    var g = c.getContext("2d");
+    var id = g.createImageData(S, S), d = id.data;
+    var R = S/2, inv = 1/R, p = 0;
+    for (var j=0; j<S; j++){
+      var ny = (j+0.5-R)*inv;
+      for (var i=0; i<S; i++, p+=4){
+        var nx = (i+0.5-R)*inv;
+        var r2 = nx*nx + ny*ny;
+        if (r2 >= 1){
+          /* outside disc: neutral (no displacement) + transparent-ish */
+          d[p]=128; d[p+1]=128; d[p+2]=0; d[p+3]=255;
+          continue;
+        }
+        var r = Math.sqrt(r2);
+        /* fisheye: displacement magnitude ramps from 0 (centre) toward rim.
+           1 - sqrt(1-r^2) gives the classic spherical pinch profile. */
+        var nz = Math.sqrt(1 - r2);
+        var mag = (r > 0) ? (1 - nz) / r : 0;   /* outward push factor */
+        var dx = nx * mag;                       /* -1..1 */
+        var dy = ny * mag;
+        /* encode signed shift into 0..255 around 128 (feDisplacementMap
+           reads channel value 0..1, displaces by (v-0.5)*scale) */
+        var rch = 128 + dx * 127;
+        var gch = 128 + dy * 127;
+        d[p]   = rch < 0 ? 0 : rch > 255 ? 255 : rch;
+        d[p+1] = gch < 0 ? 0 : gch > 255 ? 255 : gch;
+        d[p+2] = 0;
+        d[p+3] = 255;
+      }
+    }
+    g.putImageData(id, 0, 0);
+    return c.toDataURL("image/png");
+  }
+
+  (function setSphereMap(){
+    var url = buildSphereMap();
+    var img = document.getElementById("sphereMapImg");
+    /* set both namespaced + plain href for cross-browser feImage */
+    img.setAttributeNS("http://www.w3.org/1999/xlink", "href", url);
+    img.setAttribute("href", url);
+  })();
+
+  /* =================================================================== */
+  /*  THE MELT WARP — Direction C drive function                          */
+  /*  Given progress 0..1 (0=calm, .5=peak liquefaction, 1=calm again),   */
+  /*  write every animated filter attribute. Called every frame during a  */
+  /*  transition AND once for the ?warp= freeze hook.                      */
+  /* =================================================================== */
+
+  /* peak displacement amplitude of the big melt field (userSpaceOnUse px).
+     The sphere is ~460px, so 168 is a VERY violent liquefaction. */
+  var MELT_PEAK  = 168;
+  var SMEAR_PEAK = 46;        /* fine directional glitch-tear on top */
+
+  /* envelope: 0 at the ends, 1 at the middle, but front-loaded & jagged so
+     the ball SNAPS into chaos and eases back -> reads as convulse + reform */
+  function meltEnvelope(p){
+    /* smooth bell */
+    var bell = Math.sin(Math.PI * p);          /* 0..1..0 */
+    /* sharpen so it spends more time near full chaos, snaps at the ends */
+    return Math.pow(bell, 0.62);
+  }
+
+  /* deterministic pseudo-noise for seed jumps so the freeze hook is stable */
+  function hashJump(p){
+    /* quantize progress into ~14 glitch "frames" across the melt; each gets
+       a different turbulence seed -> the pattern lurches/databends */
+    var k = Math.floor(p * 14);
+    var s = (k * 2654435761) % 97;
+    return 3 + (s < 0 ? -s : s);
+  }
+
+  function applyWarp(p, churnPhase){
+    var e = meltEnvelope(p);                    /* 0..1 intensity */
+
+    /* ---- displacement scale: violent ---- */
+    meltDisp.setAttribute("scale",  (MELT_PEAK  * e).toFixed(1));
+    smearDisp.setAttribute("scale", (SMEAR_PEAK * e).toFixed(1));
+
+    /* ---- baseFrequency: CHURN. The squiggle gets finer toward the peak
+            AND wobbles with churnPhase so the noise field is in constant
+            motion (animated freq = the pattern itself moves, not just
+            a static noise scaled up). Anisotropic (x!=y) = liquid stretch. */
+    var fBase = 0.010 + e * 0.030;              /* 0.010 -> 0.040 finer at peak */
+    var fWob  = 0.006 * Math.sin(churnPhase * 6.3);
+    var fx = (fBase + fWob);
+    var fy = (fBase * 1.5 - fWob);              /* y churns out of phase */
+    meltNoise.setAttribute("baseFrequency",
+      Math.max(0.001, fx).toFixed(4) + " " + Math.max(0.001, fy).toFixed(4));
+
+    /* smear: high-freq, mostly horizontal, also churning -> directional tear */
+    var sBase = 0.07 + e * 0.10;
+    smearNoise.setAttribute("baseFrequency",
+      (sBase + 0.03*Math.sin(churnPhase*9.1)).toFixed(4) + " " +
+      (0.012 + 0.01*e).toFixed(4));
+
+    /* ---- numOctaves: more octaves at the peak = finer, more chaotic
+            churning detail; fewer at the calm ends (cheaper + smoother). */
+    var oct = 2 + Math.round(e * 2);            /* 2..4 */
+    meltNoise.setAttribute("numOctaves", oct);
+    smearNoise.setAttribute("numOctaves", 1 + Math.round(e));   /* 1..2 */
+
+    /* ---- seed jumps: lurching glitch. During real animation we also add a
+            time component so seeds keep stepping; for the freeze hook the
+            seed is a pure function of p (deterministic screenshots). */
+    var jump = hashJump(p);
+    meltNoise.setAttribute("seed",  jump);
+    smearNoise.setAttribute("seed", (jump * 7) % 53 + 5);
+  }
+
+  /* =================================================================== */
+  /*  ?warp= FREEZE HOOK — render the sphere distorted at ONE progress,    */
+  /*  no loop, no cross-fade animation. Pin image to B (the "next") so the  */
+  /*  static comparison shows mid-morph state.                             */
+  /* =================================================================== */
+  if (FREEZE){
+    /* stage a second image on B so a frozen mid-melt shows the morph blend.
+       choose deterministically: next image after curImg in the list (or the
+       pinned img stays put if pinned). */
+    var nextImg = PIN_IMG && IMAGES.indexOf(PIN_IMG) !== -1
+      ? curImg
+      : IMAGES[(IMAGES.indexOf(curImg) + 3) % IMAGES.length];
+    envB.style.backgroundImage = "url('" + imgPath(nextImg) + "')";
+    /* cross-fade opacity tracks the same bell as the melt so mid = blended */
+    envB.style.opacity = meltEnvelope(FREEZE_P).toFixed(3);
+
+    sphere.style.filter = "url(#orbMelt)";
+    applyWarp(FREEZE_P, FREEZE_P * 3.0);        /* fixed churn phase */
+    tagState.textContent = "melt warp · frozen @ " + FREEZE_P.toFixed(2);
+    return;                                      /* no loop, no rAF */
+  }
+
+  /* =================================================================== */
+  /*  reduced motion: static sphere, no warp loop at all                   */
+  /* =================================================================== */
+  if (reduce){
+    tagState.textContent = "melt warp · reduced-motion (static)";
+    return;
+  }
+
+  /* =================================================================== */
+  /*  THE TRANSITION — cross-fade A->B DURING the violent warp.            */
+  /*  Runs ~1.6s. Expensive filter is attached only for the duration.      */
+  /* =================================================================== */
+  var MELT_MS = 1600;
+  var meltActive = false;
+
+  function startMelt(){
+    if (meltActive) return;
+    meltActive = true;
+
+    /* pick the NEXT image (different from current) and stage it on the
+       HIDDEN back layer */
+    var back = (front === "A") ? envB : envA;
+    var fore = (front === "A") ? envA : envB;
+    var nextImg = curImg;
+    if (IMAGES.length > 1){
+      while (nextImg === curImg) nextImg = IMAGES[(Math.random()*IMAGES.length)|0];
+    }
+    back.style.backgroundImage = "url('" + imgPath(nextImg) + "')";
+    back.style.opacity = "0";
+
+    /* attach the expensive melt filter ONLY now */
+    sphere.style.filter = "url(#orbMelt)";
+    tagState.textContent = "melt warp · liquefying…";
+
+    var t0 = performance.now();
+    var churn = 0, lastT = t0;
+
+    function frame(now){
+      var dt = (now - lastT) / 1000; lastT = now;
+      var p = (now - t0) / MELT_MS;
+      if (p >= 1) p = 1;
+
+      /* churn phase advances fast so the squiggle field is in constant,
+         rapid motion (thrashing). Speed peaks with the envelope. */
+      churn += dt * (3.0 + 9.0 * meltEnvelope(p));
+
+      applyWarp(p, churn);
+
+      /* cross-fade A->B following the same bell so the swap is buried at
+         peak chaos: B reaches full opacity right at the most violent point. */
+      var fade = Math.min(1, meltEnvelope(p) * 1.25);  /* hits 1 before peak ends */
+      /* but ensure B ends fully visible even as the bell returns to 0 */
+      var bFade = (p < 0.5) ? fade : 1;
+      back.style.opacity = bFade.toFixed(3);
+      fore.style.opacity = (p < 0.5) ? (1 - fade).toFixed(3) : "0";
+
+      if (p < 1){
+        rafMelt = requestAnimationFrame(frame);
+      } else {
+        finishMelt(nextImg, back, fore);
+      }
+    }
+    rafMelt = requestAnimationFrame(frame);
+  }
+
+  function finishMelt(nextImg, back, fore){
+    /* snap warp fully off + DETACH the filter -> cheap idle again */
+    meltDisp.setAttribute("scale", "0");
+    smearDisp.setAttribute("scale", "0");
+    sphere.style.filter = "none";
+
+    /* commit the swap: back is now the front, cleanly showing the new image */
+    back.style.opacity = "1";
+    fore.style.opacity = "0";
+    curImg = nextImg;
+    front  = (front === "A") ? "B" : "A";
+
+    tagImg.textContent   = "reflecting · " + curImg;
+    tagState.textContent = "melt warp · idle";
+    meltActive = false;
+  }
+
+  /* =================================================================== */
+  /*  DEMO LOOP — auto-trigger the melt every ~2.5s so it's easy to watch.  */
+  /*  (In production this fires on a wall bounce; here it's on a timer.)    */
+  /* =================================================================== */
+  var rafMelt = 0;
+  var LOOP_MS = 2500;
+  var loopTimer = 0;
+
+  function scheduleNext(){
+    loopTimer = setTimeout(function(){
+      startMelt();
+      scheduleNext();
+    }, LOOP_MS);
+  }
+  /* first melt shortly after load so the page opens calm, then morphs */
+  loopTimer = setTimeout(function(){ startMelt(); scheduleNext(); }, 900);
+
+  /* pause loop + any in-flight melt when tab hidden (battery friendly) */
+  document.addEventListener("visibilitychange", function(){
+    if (document.hidden){
+      clearTimeout(loopTimer);
+      if (rafMelt){ cancelAnimationFrame(rafMelt); rafMelt = 0; }
+      if (meltActive){
+        /* leave it on the current front image, filter off */
+        sphere.style.filter = "none";
+        meltDisp.setAttribute("scale","0"); smearDisp.setAttribute("scale","0");
+        meltActive = false;
+      }
+    } else {
+      scheduleNext();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

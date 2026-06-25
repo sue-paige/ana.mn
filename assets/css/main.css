@@ -696,14 +696,22 @@ main{ position:relative; z-index:1; }
     radial-gradient(140% 140% at 68% 82%, rgba(20,28,28,.18) 0%, rgba(20,28,28,.05) 30%, rgba(20,28,28,0) 55%);
   mix-blend-mode:soft-light;
 }
-/* L3 her-image reflection on the curved skin (clearer per request) */
+/* L3 reflection — a thin slice of the stitched "world" strip that pans on scroll
+   (background-image + size set by JS; --bgy is the scroll pan, --hly the gyro nudge) */
 .drop .reflect{
-  background-image:var(--refl); background-size:152% 152%;
-  background-position:calc(50% + var(--hlx,0px)) calc(22% + var(--hly,0px));
-  opacity:.27; mix-blend-mode:screen; filter:contrast(1.08) saturate(1.12);
-  -webkit-mask-image:radial-gradient(80% 80% at 42% 34%, #000 0%, rgba(0,0,0,.55) 62%, transparent 90%);
-          mask-image:radial-gradient(80% 80% at 42% 34%, #000 0%, rgba(0,0,0,.55) 62%, transparent 90%);
+  background-repeat:no-repeat;
+  background-position:50% calc(var(--bgy,0px) + var(--hly,0px));
+  opacity:.27; mix-blend-mode:screen; filter:contrast(1.12) saturate(1.18);
+  -webkit-mask-image:radial-gradient(62% 62% at 50% 44%, #000 0%, rgba(0,0,0,.78) 52%, rgba(0,0,0,.32) 72%, transparent 84%);
+          mask-image:radial-gradient(62% 62% at 50% 44%, #000 0%, rgba(0,0,0,.78) 52%, rgba(0,0,0,.32) 72%, transparent 84%);
   transition:opacity .9s ease;
+}
+/* fainter counter-parallax reflection layer for depth */
+.drop .reflect2{
+  background-repeat:no-repeat; background-position:50% var(--bgy2,0px);
+  opacity:.11; mix-blend-mode:screen; filter:blur(.4px) saturate(1.1);
+  -webkit-mask-image:radial-gradient(70% 70% at 50% 50%, #000 0%, rgba(0,0,0,.5) 60%, transparent 82%);
+          mask-image:radial-gradient(70% 70% at 50% 50%, #000 0%, rgba(0,0,0,.5) 60%, transparent 82%);
 }
 /* L4 rim/edge light + chromatic seam */
 .drop .rim{

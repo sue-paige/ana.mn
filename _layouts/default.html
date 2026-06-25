@@ -102,10 +102,16 @@
           <feImage id="orbLensMap" result="nmap" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none"/>
           <feDisplacementMap in="SourceGraphic" in2="nmap" scale="210" xChannelSelector="R" yChannelSelector="G"/>
         </filter>
-        <!-- liquid melt, used only during an image-cycle transition (scale via JS) -->
-        <filter id="orbMelt" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
-          <feTurbulence id="orbMeltTurb" type="fractalNoise" baseFrequency="0.011 0.014" numOctaves="2" seed="5" result="mn"/>
-          <feDisplacementMap id="orbMeltDisp" in="SourceGraphic" in2="mn" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+        <!-- liquid melt (violent + squiggly, JS-driven): two churning turbulence
+             passes + goo beading so the chrome liquefies and re-forms cleanly -->
+        <filter id="orbMelt" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+          <feTurbulence id="meltTurbCoarse" type="fractalNoise" baseFrequency="0.012 0.012" numOctaves="4" seed="7" stitchTiles="noStitch" result="tCoarse"/>
+          <feTurbulence id="meltTurbFine" type="fractalNoise" baseFrequency="0.045 0.052" numOctaves="3" seed="29" stitchTiles="noStitch" result="tFine"/>
+          <feDisplacementMap id="meltDispCoarse" in="SourceGraphic" in2="tCoarse" scale="0" xChannelSelector="R" yChannelSelector="G" result="dispCoarse"/>
+          <feDisplacementMap id="meltDispFine" in="dispCoarse" in2="tFine" scale="0" xChannelSelector="B" yChannelSelector="R" result="dispFine"/>
+          <feGaussianBlur id="meltGoo" in="dispFine" stdDeviation="0" result="gooBlur"/>
+          <feColorMatrix in="gooBlur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo"/>
+          <feComposite in="dispFine" in2="goo" operator="atop"/>
         </filter>
       </defs>
     </svg>

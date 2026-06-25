@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chrome Sphere — Shockwave Ripple Melt (Direction B)</title>
+<style>
+  :root { color-scheme: light; }
+  html, body {
+    margin: 0; height: 100%;
+    background: #d8ddda;
+  }
+  body {
+    display: grid; place-items: center;
+    overflow: hidden;
+  }
+
+  .stage {
+    position: relative;
+    width: min(72vmin, 640px);
+    height: min(72vmin, 640px);
+  }
+
+  /* ---------- the sphere ---------- */
+  .orb-sphere {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    isolation: isolate;
+    /* soft contact shadow under the ball */
+    box-shadow:
+      0 24px 60px -18px rgba(40,55,60,.55),
+      0 6px 18px -8px rgba(40,55,60,.4);
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* env-mapped image layers (A / B cross-fade) */
+  .orb-env {
+    position: absolute;
+    left: -42%; top: -42%;
+    width: 184%; height: 184%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: url(#sphereWrap) contrast(1.16) saturate(1) brightness(1.34);
+    will-change: opacity, filter;
+    backface-visibility: hidden;
+  }
+  #orbEnvB { opacity: 0; }
+
+  /* ---------- chrome shading on top ---------- */
+  .orb-shade {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    mix-blend-mode: normal;
+  }
+  /* crown highlight */
+  .sh-crown {
+    background:
+      radial-gradient(120% 95% at 36% 24%,
+        rgba(255,255,255,.92) 0%,
+        rgba(255,255,255,.34) 12%,
+        rgba(255,255,255,0) 34%);
+  }
+  /* dark fresnel rim + equator band */
+  .sh-fresnel {
+    background:
+      radial-gradient(closest-side at 50% 50%,
+        rgba(0,0,0,0) 60%,
+        rgba(10,18,22,.18) 80%,
+        rgba(6,12,16,.62) 98%,
+        rgba(4,8,11,.78) 100%),
+      linear-gradient(180deg,
+        rgba(0,0,0,0) 40%,
+        rgba(8,16,20,.20) 52%,
+        rgba(0,0,0,0) 64%);
+  }
+  /* specular dot */
+  .sh-spec {
+    background:
+      radial-gradient(closest-side at 33% 22%,
+        rgba(255,255,255,1) 0%,
+        rgba(255,255,255,.85) 24%,
+        rgba(255,255,255,0) 60%);
+    width: 26%; height: 26%;
+    left: 22%; top: 12%;
+    inset: auto;
+    filter: blur(1px);
+  }
+  /* bottom lip bounce light */
+  .sh-lip {
+    background:
+      radial-gradient(80% 55% at 62% 92%,
+        rgba(180,205,210,.55) 0%,
+        rgba(180,205,210,0) 55%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb-env { animation: none !important; }
+  }
+
+  .hint {
+    position: fixed; left: 12px; bottom: 10px;
+    font: 11px/1.4 ui-monospace, monospace;
+    color: #5c6a68; opacity:.7; user-select:none;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="orb-sphere" id="orbSphere">
+      <div class="orb-env" id="orbEnvA"></div>
+      <div class="orb-env" id="orbEnvB"></div>
+      <div class="orb-shade sh-lip"></div>
+      <div class="orb-shade sh-fresnel"></div>
+      <div class="orb-shade sh-crown"></div>
+      <div class="orb-shade sh-spec"></div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">shockwave ripple melt · loop</div>
+
+  <!-- ===== SVG filters ===== -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <defs>
+      <!-- static sphere env-map (image -> ball) -->
+      <filter id="sphereWrap" x="-20%" y="-20%" width="140%" height="140%"
+              color-interpolation-filters="sRGB">
+        <feImage id="sphereMapImg" result="map"
+                 preserveAspectRatio="none" x="0" y="0" width="100%" height="100%"/>
+        <feDisplacementMap in="SourceGraphic" in2="map"
+                           scale="210"
+                           xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+
+      <!-- ===== SHOCKWAVE RIPPLE MELT =====
+           Two displacement sources composited:
+           (1) #rippleImg  : feImage of a JS-painted concentric-ring map whose
+               R/G channels push pixels radially outward — animated so the rings
+               TRAVEL out from centre (hard water-impact waves).
+           (2) feTurbulence: fine churning fractal noise for the squiggle, with
+               animated baseFrequency / seed / numOctaves.
+           We add the two maps, then env-map the ball, so the chrome ripples in
+           hard concentric waves while it thrashes. -->
+      <filter id="orbMelt" x="-45%" y="-45%" width="190%" height="190%"
+              color-interpolation-filters="sRGB">
+
+        <!-- (1) concentric travelling ripple map -->
+        <feImage id="rippleImg" result="ripmap"
+                 preserveAspectRatio="none" x="0" y="0" width="100%" height="100%"/>
+
+        <!-- (2) churning fractal squiggle -->
+        <feTurbulence id="meltTurb" type="fractalNoise"
+                      baseFrequency="0.012 0.012" numOctaves="2"
+                      seed="7" stitchTiles="stitch" result="turb"/>
+
+        <!-- gain the churning turbulence (slope rides the melt envelope),
+             centered around 0 so it's a signed displacement: turbDev. -->
+        <feComponentTransfer in="turb" result="turbDev">
+          <feFuncR id="turbGainR" type="linear" slope="1" intercept="-0.5"/>
+          <feFuncG id="turbGainG" type="linear" slope="1" intercept="-0.5"/>
+          <feFuncB type="linear" slope="0" intercept="0"/>
+        </feComponentTransfer>
+
+        <!-- EDGE MASK (JS-painted radial: white core -> black rim, all RGB).
+             Multiply the signed turbulence by it so the churn DIES at the rim,
+             then re-center to 0.5. Ripple already has its falloff baked in
+             (edgeFalloff in JS), so this guards only the SVG turbulence. -->
+        <feImage id="edgeMaskImg" result="emask"
+                 preserveAspectRatio="none" x="0" y="0" width="100%" height="100%"/>
+        <feComposite in="turbDev" in2="emask" operator="arithmetic"
+                     k1="1" k2="0" k3="0" k4="0" result="turbDevMasked"/>
+        <feComponentTransfer in="turbDevMasked" result="turbScaled">
+          <feFuncR type="linear" slope="1" intercept="0.5"/>
+          <feFuncG type="linear" slope="1" intercept="0.5"/>
+          <feFuncB type="linear" slope="0" intercept="0.5"/>
+        </feComponentTransfer>
+
+        <!-- combine ripple rings + masked churn into one displacement field -->
+        <feComposite in="ripmap" in2="turbScaled" operator="arithmetic"
+                     k1="0" k2="0.60" k3="0.60" k4="-0.06" result="field"/>
+
+        <!-- env-map the actual sphere through the painted sphere map -->
+        <feDisplacementMap id="sphereDisp" in="SourceGraphic" in2="sphereMapImg-PLACEHOLDER"
+                           scale="210" xChannelSelector="R" yChannelSelector="G"
+                           result="ball"/>
+        <!-- VIOLENT warp: displace the env-mapped ball by ripple+churn field -->
+        <feDisplacementMap id="meltDisp" in="ball" in2="field"
+                           scale="0" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+<script>
+(() => {
+  "use strict";
+
+  const IMAGES = ["submerge","greenneon","inkwater","pastel","bloom",
+                  "burst","particle","field","headphones","veil"];
+  const IMG_PATH = (n) => `../assets/img/${n}.webp`;
+
+  const sphere = document.getElementById("orbSphere");
+  const envA   = document.getElementById("orbEnvA");
+  const envB   = document.getElementById("orbEnvB");
+  const hint   = document.getElementById("hint");
+
+  // filter handles
+  const meltTurb  = document.getElementById("meltTurb");
+  const turbGainR = document.getElementById("turbGainR");
+  const turbGainG = document.getElementById("turbGainG");
+  const meltDisp  = document.getElementById("meltDisp");
+  const sphereDisp= document.getElementById("sphereDisp");
+  const sphereMapImg = document.getElementById("sphereMapImg");
+  const rippleImg = document.getElementById("rippleImg");
+
+  // fix the in2 placeholder so the melt filter env-maps via the same map
+  // (we reference the shared map result name)
+  // The static #sphereWrap uses result "map"; here we re-point sphereDisp to
+  // the painted sphere map image directly.
+  sphereDisp.setAttribute("in2", "sphereMapInner");
+
+  const MAP_SIZE   = 512;   // resolution of painted maps
+  const DISP_BASE  = 210;   // env-map fisheye strength
+  const MELT_DUR   = 1600;  // ms transition
+  const LOOP_GAP   = 2500;  // ms between auto melts
+  // VIOLENT peaks — tuned so the ball THRASHES but stays a coherent sphere
+  // (silhouette holds; the reflection churns in hard ripples + fine squiggle).
+  const PEAK_RIPPLE = 120;  // displacement contribution from ring field
+  const PEAK_TURB   = 1.6;  // turbulence channel gain at peak (rim-masked, so safe)
+  const PEAK_DISP   = 230;  // feDisplacementMap scale at peak (violent, coherent)
+  const RING_COUNT  = 3.4;  // concentric rings packed into radius at peak
+
+  // ---------- query params ----------
+  const params  = new URLSearchParams(location.search);
+  const reduce  = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const warpQ   = params.get("warp");
+  const imgQ    = params.get("img");
+  const freeze  = warpQ !== null && warpQ !== "";
+  const freezeP = freeze ? Math.max(0, Math.min(1, parseFloat(warpQ) || 0)) : 0;
+
+  // ---------- build the env-map sphere normal map ----------
+  // R = horizontal shift, G = vertical shift, growing toward rim (fisheye).
+  function buildSphereMap() {
+    const s = MAP_SIZE;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const ctx = cv.getContext("2d");
+    const img = ctx.createImageData(s, s);
+    const d = img.data;
+    const c = (s - 1) / 2;
+    for (let y = 0; y < s; y++) {
+      for (let x = 0; x < s; x++) {
+        const nx = (x - c) / c;     // -1..1
+        const ny = (y - c) / c;
+        const r  = Math.hypot(nx, ny);
+        let R = 128, G = 128;
+        if (r <= 1) {
+          // fisheye: bend increases toward rim
+          const bend = Math.sin(r * Math.PI * 0.5); // 0..1, steep at rim
+          const ang  = Math.atan2(ny, nx);
+          const push = bend * 0.5;                  // normalized
+          R = 128 + Math.cos(ang) * push * 127;
+          G = 128 + Math.sin(ang) * push * 127;
+        }
+        const i = (y * s + x) * 4;
+        d[i] = R; d[i+1] = G; d[i+2] = 128; d[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv.toDataURL();
+  }
+
+  // ---------- build the concentric SHOCKWAVE RIPPLE map ----------
+  // phase shifts the rings outward; amp controls wave steepness.
+  // R/G encode a radial push (outward along the radius) modulated by a
+  // travelling sine -> hard concentric waves expanding from centre.
+  function buildRippleMap(phase, amp, falloff) {
+    const s = MAP_SIZE;
+    const cv = buildRippleMap._cv ||
+               (buildRippleMap._cv = Object.assign(document.createElement("canvas"),
+                 { width: s, height: s }));
+    const ctx = buildRippleMap._ctx ||
+                (buildRippleMap._ctx = cv.getContext("2d"));
+    const img = ctx.createImageData(s, s);
+    const d = img.data;
+    const c = (s - 1) / 2;
+    const TWO_PI = Math.PI * 2;
+    for (let y = 0; y < s; y++) {
+      for (let x = 0; x < s; x++) {
+        const dx = (x - c) / c;
+        const dy = (y - c) / c;
+        const r  = Math.hypot(dx, dy);
+        let R = 128, G = 128;
+        if (r <= 1.0 && r > 1e-4) {
+          // travelling concentric wave: rings move outward as phase grows.
+          // hard impact: rings tightly packed + a leading steep front.
+          const wave = Math.sin((r * RING_COUNT - phase) * TWO_PI);
+          // sharpen the wave so fronts read as HARD ripples (not soft sine)
+          const hard = Math.sign(wave) * Math.pow(Math.abs(wave), 0.65);
+          // amplitude falls off toward rim so the ball edge stays a circle
+          const edgeFall = edgeFalloff(r);
+          // a moving impact ring: extra punch near the wavefront radius
+          const frontR   = Math.min(0.98, phase / RING_COUNT % 1.0 + 0.0);
+          const frontHit = Math.exp(-Math.pow((r - frontR) * 6.5, 2)) * 0.9;
+          const mag = amp * (hard * (0.6 + frontHit) ) * edgeFall;
+          // push radially outward (dx/r, dy/r)
+          const ux = dx / r, uy = dy / r;
+          R = 128 + ux * mag * 127;
+          G = 128 + uy * mag * 127;
+        }
+        const i = (y * s + x) * 4;
+        d[i] = R; d[i+1] = G; d[i+2] = 128; d[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv.toDataURL();
+  }
+
+  // radial edge falloff shared by the painted maps: 1 in the core, smoothly
+  // ramps to 0 before the rim so the displaced ball never sprays past its
+  // silhouette — the violence stays inside the circle.
+  function edgeFalloff(r) {
+    let a = 1;
+    if (r > 0.74) a = Math.max(0, 1 - (r - 0.74) / 0.20); // full to .74, zero by .94
+    return a * a * (3 - 2 * a); // smoothstep
+  }
+
+  // ---------- build the EDGE MASK (RGB multiplier for the turbulence) ----------
+  // white (1) in the core -> black (0) at the rim, opaque. Used by #orbMelt to
+  // multiply the signed turbulence so the churn dies at the silhouette.
+  function buildEdgeMask() {
+    const s = MAP_SIZE;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const ctx = cv.getContext("2d");
+    const img = ctx.createImageData(s, s);
+    const d = img.data;
+    const c = (s - 1) / 2;
+    for (let y = 0; y < s; y++) {
+      for (let x = 0; x < s; x++) {
+        const r = Math.hypot((x - c) / c, (y - c) / c);
+        const v = Math.round(edgeFalloff(r) * 255);
+        const i = (y * s + x) * 4;
+        d[i] = v; d[i+1] = v; d[i+2] = v; d[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv.toDataURL();
+  }
+
+  // ---------- wire up the env map (shared by both filters) ----------
+  const sphereMapURL = buildSphereMap();
+  const edgeMaskURL  = buildEdgeMask();
+  const edgeMaskImg  = document.getElementById("edgeMaskImg");
+  edgeMaskImg.setAttribute("href", edgeMaskURL);
+  edgeMaskImg.setAttributeNS("http://www.w3.org/1999/xlink", "href", edgeMaskURL);
+  sphereMapImg.setAttribute("href", sphereMapURL);
+  sphereMapImg.setAttributeNS("http://www.w3.org/1999/xlink", "href", sphereMapURL);
+
+  // a second feImage inside #orbMelt that holds the same sphere map for the
+  // env-map step. We add it dynamically so #sphereWrap stays untouched.
+  (function injectInnerSphereMap() {
+    const NS = "http://www.w3.org/2000/svg";
+    const filt = document.getElementById("orbMelt");
+    const fe = document.createElementNS(NS, "feImage");
+    fe.setAttribute("result", "sphereMapInner");
+    fe.setAttribute("preserveAspectRatio", "none");
+    fe.setAttribute("x", "0"); fe.setAttribute("y", "0");
+    fe.setAttribute("width", "100%"); fe.setAttribute("height", "100%");
+    fe.setAttribute("href", sphereMapURL);
+    fe.setAttributeNS("http://www.w3.org/1999/xlink", "href", sphereMapURL);
+    filt.insertBefore(fe, filt.firstChild);
+  })();
+
+  // ---------- melt envelope ----------
+  // progress 0..1 ; bell-shaped intensity that peaks mid-melt.
+  function intensity(p) {
+    // smooth rise/fall, asymmetric so the re-form lingers slightly
+    const bell = Math.sin(Math.PI * Math.min(1, Math.max(0, p)));
+    return Math.pow(bell, 0.8);
+  }
+
+  // map progress -> all animated filter params for a single freeze/frame.
+  function applyWarp(p) {
+    const k = intensity(p);                 // 0..1 envelope
+
+    // env-map base disp stays constant (keeps the ball a ball)
+    sphereDisp.setAttribute("scale", String(DISP_BASE));
+
+    // VIOLENT melt displacement scale
+    meltDisp.setAttribute("scale", String(PEAK_DISP * k));
+
+    // churning turbulence: baseFrequency rises (finer) and CHURNS,
+    // seed walks, octaves grow mid-melt -> the squiggle pattern MOVES.
+    // coarser, ropey squiggle that CHURNS (reads as liquid chrome, not static)
+    const bf = 0.008 + 0.034 * k + 0.010 * Math.sin(p * Math.PI * 6);
+    const bfY = bf * (0.80 + 0.5 * Math.sin(p * Math.PI * 5 + 1.3));
+    meltTurb.setAttribute("baseFrequency", `${bf.toFixed(4)} ${bfY.toFixed(4)}`);
+    meltTurb.setAttribute("numOctaves", String(k > 0.4 ? 3 : 2));
+    meltTurb.setAttribute("seed", String((Math.floor(p * 120) % 97) + 1));
+
+    // turbulence channel gain rides the envelope (squiggle strength).
+    // output is SIGNED + centered on 0: turbDev = g*(turb - 0.5)
+    // -> slope = g, intercept = -0.5*g. (re-centered to 0.5 after masking.)
+    const g = PEAK_TURB * k;
+    turbGainR.setAttribute("slope", g.toFixed(3));
+    turbGainR.setAttribute("intercept", (-0.5 * g).toFixed(3));
+    turbGainG.setAttribute("slope", g.toFixed(3));
+    turbGainG.setAttribute("intercept", (-0.5 * g).toFixed(3));
+
+    // travelling concentric rings: phase advances with progress so rings
+    // expand OUTWARD from centre. amplitude rides envelope.
+    const phase = p * 3.2;                         // rings travel outward
+    const amp   = (PEAK_RIPPLE / 127) * k;         // normalized ring push
+    const fall  = 2.4;                             // strong edge falloff (silhouette holds)
+    const ripURL = buildRippleMap(phase, amp, fall);
+    rippleImg.setAttribute("href", ripURL);
+    rippleImg.setAttributeNS("http://www.w3.org/1999/xlink", "href", ripURL);
+  }
+
+  // ---------- image staging ----------
+  let topEnv = envA, botEnv = envB;  // topEnv = currently visible
+  function setImg(el, name) { el.style.backgroundImage = `url("${IMG_PATH(name)}")`; }
+
+  function pickImage(exclude) {
+    if (imgQ && IMAGES.includes(imgQ)) return imgQ;
+    let n;
+    do { n = IMAGES[(Math.random() * IMAGES.length) | 0]; }
+    while (n === exclude && IMAGES.length > 1);
+    return n;
+  }
+
+  let current = pickImage(null);
+  setImg(envA, current);
+  envA.style.opacity = 1;
+  envB.style.opacity = 0;
+
+  // ================= FREEZE / QA MODE =================
+  if (freeze) {
+    hint.textContent = `frozen warp=${freezeP.toFixed(2)}` +
+                       (imgQ ? ` img=${imgQ}` : ``);
+    // render the distorted sphere at one progress, no loop, no crossfade.
+    // Stage B too (so both layers exist) but keep A visible.
+    sphere.style.filter = "url(#orbMelt)";
+    // need the env layers to actually use the static wrap *through* the melt;
+    // the melt filter already env-maps via sphereMapInner, but env layers
+    // additionally carry #sphereWrap. Disable the per-layer wrap so the melt
+    // owns the full distortion deterministically.
+    envA.style.filter = "contrast(1.16) saturate(1) brightness(1.34)";
+    envB.style.filter = "contrast(1.16) saturate(1) brightness(1.34)";
+    applyWarp(freezeP);
+    return;  // no animation
+  }
+
+  // ================= REDUCED MOTION =================
+  if (reduce) {
+    hint.textContent = "reduced-motion · static sphere";
+    return; // static, no warp loop, no crossfade
+  }
+
+  // ================= LIVE LOOP =================
+  let rafId = null;
+
+  function runMelt() {
+    // stage next image on the hidden bottom layer
+    const next = pickImage(current);
+    setImg(botEnv, next);
+
+    // turn on the expensive filter ONLY for the transition
+    sphere.style.filter = "url(#orbMelt)";
+    // hand full distortion to the melt filter during the transition
+    envA.style.filter = "contrast(1.16) saturate(1) brightness(1.34)";
+    envB.style.filter = "contrast(1.16) saturate(1) brightness(1.34)";
+
+    const t0 = performance.now();
+
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / MELT_DUR);
+      applyWarp(p);
+
+      // cross-fade A->B DURING the warp; centre the swap on the peak so the
+      // image change is buried in the most violent part of the wobble.
+      // ease the opacity with a smootherstep centred ~0.5
+      const cf = smoother(clamp01((p - 0.18) / 0.64));
+      topEnv.style.opacity = String(1 - cf);
+      botEnv.style.opacity = String(cf);
+
+      if (p < 1) {
+        rafId = requestAnimationFrame(frame);
+      } else {
+        // settle: kill the expensive filter, restore cheap per-layer wrap
+        sphere.style.filter = "none";
+        // swap roles
+        topEnv.style.opacity = 0;
+        botEnv.style.opacity = 1;
+        envA.style.filter = "url(#sphereWrap) contrast(1.16) saturate(1) brightness(1.34)";
+        envB.style.filter = "url(#sphereWrap) contrast(1.16) saturate(1) brightness(1.34)";
+        const tmp = topEnv; topEnv = botEnv; botEnv = tmp;
+        current = next;
+        // reset warp params to rest
+        applyWarp(0);
+        meltDisp.setAttribute("scale", "0");
+      }
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function clamp01(v){ return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function smoother(t){ return t*t*t*(t*(t*6-15)+10); }
+
+  // restore the cheap static wrap on the env layers at rest
+  envA.style.filter = "url(#sphereWrap) contrast(1.16) saturate(1) brightness(1.34)";
+  envB.style.filter = "url(#sphereWrap) contrast(1.16) saturate(1) brightness(1.34)";
+
+  // gentle idle breathing (transform only — cheap) between melts
+  let idleStart = performance.now();
+  function idle(now){
+    if (sphere.style.filter === "" || sphere.style.filter === "none") {
+      const t = (now - idleStart) / 1000;
+      const s = 1 + Math.sin(t * 1.4) * 0.006;
+      sphere.style.transform =
+        `translateZ(0) scale(${s.toFixed(4)}) translateY(${(Math.sin(t*0.9)*4).toFixed(2)}px)`;
+    }
+    requestAnimationFrame(idle);
+  }
+  requestAnimationFrame(idle);
+
+  // loop
+  applyWarp(0);
+  meltDisp.setAttribute("scale", "0");
+  setInterval(runMelt, LOOP_GAP);
+  setTimeout(runMelt, 700); // first one shortly after load
+})();
+</script>
+</body>
+</html>
