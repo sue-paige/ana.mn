@@ -120,6 +120,7 @@
       bgBanner = $('bg-banner'), bgChrome = $('bg-chrome'), bgPortal = $('bg-portal'),
       bgFig = $('bg-fig'), bgVig = $('bg-vig'), bgScrim = $('bg-scrim'),
       bgMesh = $('bg-mesh'), bgGrid = $('bg-grid');
+  var bgTexDoc = $('bg-tex-doc'), bgTexFig = $('bg-tex-fig'), bgTexWater = $('bg-tex-water');
   var ghostA = $('ghost-a'), ghostA2 = $('ghost-a2'), ghostB = $('ghost-b');
   var contact = $('contact');
 
@@ -169,6 +170,10 @@
     set(bgBanner, 0.50 * band(prog, 0.20, 0.36, 0.60, 0.86));
     set(bgChrome, 0.46 * band(prog, 0.26, 0.42, 0.64, 0.90));
     set(bgFig, 0.62 * band(prog, 0.04, 0.16, 0.38, 0.62));
+    /* faint ghost-image texture — her work surfacing and fully dissolving */
+    set(bgTexDoc, 0.14 * band(prog, 0.02, 0.12, 0.26, 0.42) * br);
+    set(bgTexFig, 0.13 * band(prog, 0.34, 0.46, 0.58, 0.74) * br);
+    set(bgTexWater, 0.15 * band(prog, 0.50, 0.62, 0.78, 0.93) * br);
     set(bgPortal, 1.0 * cIn * br);
     set(bgVig, 0.5 + 0.4 * cIn);
     set(bgScrim, 1 - 0.72 * cIn);
