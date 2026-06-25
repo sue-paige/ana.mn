@@ -28,6 +28,14 @@
         <feDisplacementMap id="tapDisp" in="SourceGraphic" in2="tt" scale="0"
                            xChannelSelector="R" yChannelSelector="G"/>
       </filter>
+
+      <!-- droplet lens: a sphere displacement map (built in JS) refracts the real
+           page pixels behind each water droplet into a magnifying lens -->
+      <filter id="dropletLens" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+        <feImage id="lensMap" x="0" y="0" width="100%" height="100%" result="normal" preserveAspectRatio="none"/>
+        <feDisplacementMap in="SourceGraphic" in2="normal" scale="66"
+                           xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
     </defs>
   </svg>
 
@@ -36,6 +44,9 @@
     <div class="intro__warp" id="introWarp"><div class="intro__liquid" id="introLiquid"></div></div>
     <div class="intro__sheen" id="introSheen"></div>
   </div>
+
+  <!-- hyperreal water droplets (built by JS): refract the page + reflect her work -->
+  <div class="droplets" id="droplets" aria-hidden="true"></div>
 
   <!-- ===================== DYNAMIC BACKGROUND STAGE ===================== -->
   <div class="bgstage" id="bgstage" aria-hidden="true">

@@ -342,3 +342,131 @@
     c.addEventListener('click', function () { trigger(img); });
   });
 })();
+
+/* ===========================================================================
+   WATER DROPLETS — hyperreal liquid-glass beads. SVG lens refracts the page,
+   her image reflects on the skin; tap splats them (image blooms clear). Pointer
+   parallax + gyroscope. Layer is pointer-events:none + hit-test so the page
+   stays clickable. Reduced-motion = static droplets.
+   =========================================================================== */
+(function () {
+  'use strict';
+  var layer = document.getElementById('droplets');
+  if (!layer) return;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  /* build the sphere displacement map (R = x-shift, G = y-shift) for #lensMap */
+  (function buildNormalMap() {
+    var N = 128, c = N / 2, cv = document.createElement('canvas');
+    cv.width = cv.height = N;
+    var ctx = cv.getContext('2d'); if (!ctx) return;
+    var img = ctx.createImageData(N, N), data = img.data, maxShift = 100;
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
+      var dx = x - c + 0.5, dy = y - c + 0.5, r = Math.sqrt(dx * dx + dy * dy) / c, amp;
+      if (r >= 1) amp = 0; else { var bow = Math.pow(r, 1.7), edge = r > 0.88 ? (1 - (r - 0.88) / 0.12) : 1; amp = bow * edge; }
+      var ux = r > 0 ? dx / (r * c) : 0, uy = r > 0 ? dy / (r * c) : 0, i = (y * N + x) * 4;
+      data[i] = Math.max(0, Math.min(255, Math.round(128 + ux * amp * maxShift)));
+      data[i + 1] = Math.max(0, Math.min(255, Math.round(128 + uy * amp * maxShift)));
+      data[i + 2] = 128; data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    var url = cv.toDataURL('image/png'), fe = document.getElementById('lensMap');
+    if (fe) { fe.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url); fe.setAttribute('href', url); }
+  })();
+
+  var REFL = ['url(/assets/img/submerge.webp)', 'url(/assets/img/greenneon.webp)', 'url(/assets/img/inkwater.webp)'];
+  var SPEC = [
+    { x: 16, y: 24, d: 96, r: 0 },
+    { x: 74, y: 18, d: 74, r: 1 },
+    { x: 33, y: 48, d: 118, r: 2 },
+    { x: 85, y: 44, d: 66, r: 0 },
+    { x: 23, y: 72, d: 100, r: 1 },
+    { x: 65, y: 80, d: 84, r: 2 }
+  ];
+  if (window.innerWidth < 620) SPEC = [SPEC[0], SPEC[2], SPEC[4], SPEC[5]];  // lighter on phones
+
+  var drops = [];
+  SPEC.forEach(function (s) {
+    var el = document.createElement('div');
+    el.className = 'drop';
+    el.style.left = s.x + 'vw'; el.style.top = s.y + 'vh';
+    el.style.setProperty('--d', s.d + 'px');
+    el.style.setProperty('--refl', REFL[s.r % REFL.length]);
+    el.innerHTML = '<span class="lens"></span><span class="reflect"></span><span class="body-g"></span><span class="rim"></span><span class="spec"></span><span class="ripple"></span>';
+    el._w = 0.4 + (s.d / 130);
+    el.addEventListener('animationend', function () { el.classList.remove('splat'); });
+    drops.push(el); layer.appendChild(el);
+  });
+
+  /* tap = splat (hit-test; the page underneath stays fully clickable) */
+  window.addEventListener('pointerdown', function (e) {
+    if (reduce) return;
+    var cx = e.clientX, cy = e.clientY;
+    for (var i = 0; i < drops.length; i++) {
+      var r = drops[i].getBoundingClientRect();
+      var mx = r.left + r.width / 2, my = r.top + r.height / 2, rad = r.width / 2 + 6;
+      if ((cx - mx) * (cx - mx) + (cy - my) * (cy - my) <= rad * rad) {
+        drops[i].classList.remove('splat'); void drops[i].offsetWidth; drops[i].classList.add('splat');
+      }
+    }
+  }, { passive: true });
+
+  if (reduce) return;  // static droplets, no parallax/gyro
+
+  /* motion: one coalescing rAF eases drift + highlight toward targets */
+  var tgtMX = 0, tgtMY = 0, tgtHL = 0, tgtHV = 0, curMX = 0, curMY = 0, curHL = 0, curHV = 0, raf = 0, idle = true;
+  function frame() {
+    raf = 0;
+    curMX += (tgtMX - curMX) * 0.12; curMY += (tgtMY - curMY) * 0.12;
+    curHL += (tgtHL - curHL) * 0.12; curHV += (tgtHV - curHV) * 0.12;
+    for (var i = 0; i < drops.length; i++) {
+      var el = drops[i], w = el._w;
+      el.style.setProperty('--mx', (curMX * w).toFixed(2) + 'px');
+      el.style.setProperty('--my', (curMY * w).toFixed(2) + 'px');
+      el.style.setProperty('--hlx', curHL.toFixed(2) + 'px');
+      el.style.setProperty('--hly', curHV.toFixed(2) + 'px');
+    }
+    var settled = Math.abs(tgtMX - curMX) < 0.05 && Math.abs(tgtMY - curMY) < 0.05 && Math.abs(tgtHL - curHL) < 0.05 && Math.abs(tgtHV - curHV) < 0.05;
+    if (!settled) schedule(); else idle = true;
+  }
+  function schedule() { idle = false; if (!raf) raf = requestAnimationFrame(frame); }
+
+  var hasGyro = false;
+  window.addEventListener('pointermove', function (e) {
+    if (hasGyro) return;
+    var nx = e.clientX / window.innerWidth - 0.5, ny = e.clientY / window.innerHeight - 0.5;
+    tgtMX = nx * 10; tgtMY = ny * 10; tgtHL = -nx * 7; tgtHV = -ny * 7; schedule();
+  }, { passive: true });
+
+  function onTilt(e) {
+    if (e.gamma == null && e.beta == null) return;
+    hasGyro = true;
+    var g = Math.max(-30, Math.min(30, e.gamma || 0)), b = Math.max(-30, Math.min(30, (e.beta || 0) - 45));
+    tgtMX = (g / 30) * 8; tgtMY = (b / 30) * 8; tgtHL = -(g / 30) * 8; tgtHV = -(b / 30) * 8; schedule();
+  }
+  function enableGyro() {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(function (st) { if (st === 'granted') window.addEventListener('deviceorientation', onTilt, { passive: true }); }).catch(function () {});
+    } else if ('ondeviceorientation' in window) {
+      window.addEventListener('deviceorientation', onTilt, { passive: true });
+    }
+  }
+  enableGyro();
+  window.addEventListener('touchstart', enableGyro, { once: true, passive: true });
+
+  var lastY = window.scrollY, sticky = 0;
+  window.addEventListener('scroll', function () {
+    if (sticky) return;
+    sticky = requestAnimationFrame(function () {
+      sticky = 0; var dy = window.scrollY - lastY; lastY = window.scrollY;
+      tgtHV = Math.max(-9, Math.min(9, -dy * 0.25)); schedule();
+    });
+  }, { passive: true });
+
+  var bt = 0;
+  setInterval(function () {
+    if (hasGyro) return;
+    bt += 0.5;
+    if (idle) { tgtHL = Math.sin(bt) * 1.4; tgtHV = Math.cos(bt * 0.8) * 1.0; schedule(); }
+  }, 1600);
+})();
