@@ -157,28 +157,33 @@
     if (bgPortal) {
       bgPortal.style.transform = 'translate3d(' + (Math.sin(t * 0.32) * 16).toFixed(2) + 'px,' + ((-y * 0.06) + Math.cos(t * 0.24) * 18).toFixed(2) + 'px,0)';
     }
-    /* ghost words — counter-drift + sway */
-    if (ghostA) ghostA.style.transform = 'translate(-50%,-50%) translate3d(' + (-y * 0.05 + Math.sin(t * 0.2) * 7).toFixed(2) + 'px,' + (y * 0.12).toFixed(2) + 'px,0)';
-    if (ghostA2) ghostA2.style.transform = 'translate(-50%,-50%) translate3d(' + (-y * 0.05 + 26 + Math.sin(t * 0.2 + 1) * 7).toFixed(2) + 'px,' + (y * 0.12 + 18).toFixed(2) + 'px,0)';
-    if (ghostB) ghostB.style.transform = 'translate(-50%,-50%) translate3d(' + (y * 0.08 + Math.cos(t * 0.17) * 9).toFixed(2) + 'px,' + (-y * 0.06 - 220).toFixed(2) + 'px,0)';
+    /* ghost words — STRONG animation: continuous sway + width-stretch breathing */
+    var gx = Math.sin(t * 0.26) * 40;             /* continuous horizontal sway */
+    var gsx = 1 + Math.sin(t * 0.42) * 0.07;      /* width breathing (cheap scaleX) */
+    var gsx2 = 1 + Math.cos(t * 0.34) * 0.06;
+    if (ghostA) ghostA.style.transform = 'translate(-50%,-50%) translate3d(' + (gx - y * 0.06).toFixed(2) + 'px,' + (y * 0.13).toFixed(2) + 'px,0) scaleX(' + gsx.toFixed(3) + ')';
+    if (ghostA2) ghostA2.style.transform = 'translate(-50%,-50%) translate3d(' + (gx * 0.7 + 30 - y * 0.06).toFixed(2) + 'px,' + (y * 0.13 + 22).toFixed(2) + 'px,0) scaleX(' + gsx.toFixed(3) + ')';
+    if (ghostB) ghostB.style.transform = 'translate(-50%,-50%) translate3d(' + (-gx * 1.1 + y * 0.09).toFixed(2) + 'px,' + (-y * 0.07 - 230).toFixed(2) + 'px,0) scaleX(' + gsx2.toFixed(3) + ')';
 
     /* cross-fades (prog 0..1 over the whole page) + breathing on atmospherics */
     var br = 0.92 + 0.08 * Math.sin(t * 0.5);
-    set(bgArch, 0.10 + 0.26 * band(prog, -1, 0, 0.18, 0.46));
-    set(bgInk, 0.22 * band(prog, 0, 0.03, 0.16, 0.34) * br);
-    set(bgStreak, 0.40 * band(prog, 0.10, 0.26, 0.52, 0.80));
-    set(bgBanner, 0.50 * band(prog, 0.20, 0.36, 0.60, 0.86));
-    set(bgChrome, 0.46 * band(prog, 0.26, 0.42, 0.64, 0.90));
-    set(bgFig, 0.62 * band(prog, 0.04, 0.16, 0.38, 0.62));
+    /* IMAGES = subtle texture only (kept low) */
+    set(bgArch, 0.05 + 0.10 * band(prog, -1, 0, 0.18, 0.46));
+    set(bgInk, 0.10 * band(prog, 0, 0.03, 0.16, 0.34) * br);
+    set(bgStreak, 0.16 * band(prog, 0.10, 0.26, 0.52, 0.80));
+    set(bgBanner, 0.20 * band(prog, 0.20, 0.36, 0.60, 0.86));
+    set(bgChrome, 0.18 * band(prog, 0.26, 0.42, 0.64, 0.90));
+    set(bgFig, 0.30 * band(prog, 0.04, 0.16, 0.38, 0.62));
     /* faint ghost-image texture — her work surfacing and fully dissolving */
-    set(bgTexDoc, 0.14 * band(prog, 0.02, 0.12, 0.26, 0.42) * br);
-    set(bgTexFig, 0.13 * band(prog, 0.34, 0.46, 0.58, 0.74) * br);
-    set(bgTexWater, 0.15 * band(prog, 0.50, 0.62, 0.78, 0.93) * br);
-    set(bgPortal, 1.0 * cIn * br);
+    set(bgTexDoc, 0.10 * band(prog, 0.02, 0.12, 0.26, 0.42) * br);
+    set(bgTexFig, 0.09 * band(prog, 0.34, 0.46, 0.58, 0.74) * br);
+    set(bgTexWater, 0.10 * band(prog, 0.50, 0.62, 0.78, 0.93) * br);
+    set(bgPortal, 0.55 * cIn * br);
     set(bgVig, 0.5 + 0.4 * cIn);
     set(bgScrim, 1 - 0.72 * cIn);
-    if (bgMesh) set(bgMesh, 0.55 * (1 - 0.7 * cIn));
-    if (bgGrid) set(bgGrid, 0.55 - 0.18 * cIn);
+    /* LINES = stronger; also gently pulse so they read as "alive" */
+    if (bgMesh) set(bgMesh, 0.6 * (1 - 0.6 * cIn));
+    if (bgGrid) set(bgGrid, (0.72 + 0.08 * Math.sin(t * 0.6)) * (1 - 0.25 * cIn));
 
     if (cActive) document.body.classList.add('contact-active');
     else document.body.classList.remove('contact-active');
