@@ -121,6 +121,7 @@
       bgFig = $('bg-fig'), bgVig = $('bg-vig'), bgScrim = $('bg-scrim'),
       bgMesh = $('bg-mesh'), bgGrid = $('bg-grid');
   var bgTexDoc = $('bg-tex-doc'), bgTexFig = $('bg-tex-fig'), bgTexWater = $('bg-tex-water');
+  var bgDeep = $('bg-deep'), bgMid = $('bg-mid');   /* additive deep/mid parallax */
   var ghostA = $('ghost-a'), ghostA2 = $('ghost-a2'), ghostB = $('ghost-b');
   var contact = $('contact');
 
@@ -144,6 +145,9 @@
     for (var i = 0; i < generic.length; i++) {
       generic[i].el.style.transform = 'translate3d(0,' + (-y * generic[i].speed).toFixed(2) + 'px,0)';
     }
+    /* additive deep (building, slow) + mid (portal, faster, in front of orb) */
+    if (bgDeep) bgDeep.style.transform = 'translate3d(0,' + (-y * 0.03).toFixed(2) + 'px,0)';
+    if (bgMid) bgMid.style.transform = 'translate3d(0,' + (-y * 0.16).toFixed(2) + 'px,0)';
 
     /* contact proximity (robust, rect-based) */
     var cIn = 0, cActive = false;
@@ -393,22 +397,60 @@
     el.style.setProperty('--d', s.d + 'px');
     el.style.setProperty('--refl', REFL[s.r % REFL.length]);
     el.innerHTML = '<span class="lens"></span><span class="reflect"></span><span class="body-g"></span><span class="rim"></span><span class="spec"></span><span class="ripple"></span>';
-    el._w = 0.4 + (s.d / 130);
+    el._w = 0.4 + (s.d / 130); el._yv = s.y; el._d = s.d;
     el.addEventListener('animationend', function () { el.classList.remove('splat'); });
     drops.push(el); layer.appendChild(el);
   });
 
+  /* footer-avoid: push droplets up off the contact panel so it stays unobscured */
+  var dContact = document.getElementById('contact');
+  function footerAvoid() {
+    if (!dContact) return;
+    var ft = dContact.getBoundingClientRect().top, vh = window.innerHeight;
+    var cover = Math.max(0, Math.min(1, (vh - ft) / vh));
+    layer.style.opacity = (1 - Math.max(0, (cover - 0.45) / 0.55)).toFixed(2);   // fade out over the footer
+    for (var i = 0; i < drops.length; i++) {
+      var d = drops[i], natTop = d._yv / 100 * vh, natBot = natTop + d._d;
+      d.style.setProperty('--fy', ((ft < vh && natBot > ft) ? Math.min(natTop, natBot - ft + 12) : 0).toFixed(1) + 'px');
+    }
+  }
+  var fTick = false;
+  window.addEventListener('scroll', function () { if (!fTick) { fTick = true; requestAnimationFrame(function () { fTick = false; footerAvoid(); }); } }, { passive: true });
+  window.addEventListener('resize', footerAvoid, { passive: true });
+  footerAvoid();
+
+  /* hyper-clean Y2K water-plink SFX + haptic on tap */
+  var actx = null;
+  function blip() {
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      var t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine';
+      var f0 = 1300 + (Math.random() * 480 - 240);
+      o.frequency.setValueAtTime(f0, t);
+      o.frequency.exponentialRampToValueAtTime(f0 * 0.5, t + 0.13);   // pitch drop = water plink
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.085, t + 0.006);          // crisp attack
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);          // quick clean decay
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + 0.18);
+    } catch (e) {}
+  }
+  function haptic() { if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} } }
+
   /* tap = splat (hit-test; the page underneath stays fully clickable) */
   window.addEventListener('pointerdown', function (e) {
     if (reduce) return;
-    var cx = e.clientX, cy = e.clientY;
+    var cx = e.clientX, cy = e.clientY, hit = false;
     for (var i = 0; i < drops.length; i++) {
       var r = drops[i].getBoundingClientRect();
       var mx = r.left + r.width / 2, my = r.top + r.height / 2, rad = r.width / 2 + 6;
       if ((cx - mx) * (cx - mx) + (cy - my) * (cy - my) <= rad * rad) {
-        drops[i].classList.remove('splat'); void drops[i].offsetWidth; drops[i].classList.add('splat');
+        drops[i].classList.remove('splat'); void drops[i].offsetWidth; drops[i].classList.add('splat'); hit = true;
       }
     }
+    if (hit) { blip(); haptic(); }
   }, { passive: true });
 
   if (reduce) return;  // static droplets, no parallax/gyro
@@ -469,4 +511,131 @@
     bt += 0.5;
     if (idle) { tgtHL = Math.sin(bt) * 1.4; tgtHV = Math.cos(bt * 0.8) * 1.0; schedule(); }
   }, 1600);
+})();
+
+/* ===========================================================================
+   BACKGROUND CHROME SPHERE — mirror ball env-mapping a random one of her images,
+   bouncing + slowly rolling behind content. Cycles images with a liquid melt.
+   Bounce/roll are transform-only; melt filter runs only during a transition.
+   =========================================================================== */
+(function () {
+  'use strict';
+  var orb = document.getElementById('orb');
+  var sphere = document.getElementById('orbSphere');
+  var envA = document.getElementById('orbEnvA');
+  var envB = document.getElementById('orbEnvB');
+  var meltDisp = document.getElementById('orbMeltDisp');
+  if (!orb || !sphere || !envA || !envB) return;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  /* radial sphere displacement map (R=x-shift, G=y-shift, growing toward the rim)
+     -> feDisplacementMap fisheyes her image onto a real sphere (clear center,
+     compressed rim) so it reads as 3D, not a flat circle */
+  (function buildSphereMap() {
+    var fe = document.getElementById('orbLensMap'); if (!fe) return;
+    var N = 160, c = N / 2, cv = document.createElement('canvas'); cv.width = cv.height = N;
+    var ctx = cv.getContext('2d'); if (!ctx) return;
+    var im = ctx.createImageData(N, N), d = im.data, maxShift = 112;
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
+      var dx = x - c + 0.5, dy = y - c + 0.5, r = Math.sqrt(dx * dx + dy * dy) / c, amp;
+      if (r >= 1) amp = 0; else { var bow = Math.pow(r, 1.8), edge = r > 0.9 ? (1 - (r - 0.9) / 0.1) : 1; amp = bow * edge; }
+      var ux = r > 0 ? dx / (r * c) : 0, uy = r > 0 ? dy / (r * c) : 0, i = (y * N + x) * 4;
+      d[i] = Math.max(0, Math.min(255, Math.round(128 + ux * amp * maxShift)));
+      d[i + 1] = Math.max(0, Math.min(255, Math.round(128 + uy * amp * maxShift)));
+      d[i + 2] = 128; d[i + 3] = 255;
+    }
+    ctx.putImageData(im, 0, 0);
+    var url = cv.toDataURL('image/png');
+    fe.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url); fe.setAttribute('href', url);
+  })();
+
+  var IMAGES = ['submerge', 'greenneon', 'inkwater', 'pastel', 'bloom', 'burst', 'particle', 'field', 'headphones', 'veil'];
+  function setLayer(el, name) { el.style.backgroundImage = "url('/assets/img/" + name + ".webp')"; }
+  var idx = (Math.random() * IMAGES.length) | 0;
+  setLayer(envA, IMAGES[idx]);
+  var curEnv = envA, stgEnv = envB;
+
+  var SIZE = window.innerWidth < 620 ? 190 : 300;
+  orb.style.width = orb.style.height = SIZE + 'px';
+  function place(x, y) { orb.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)'; }
+
+  if (reduce) {
+    place(window.innerWidth - SIZE * 0.78, window.innerHeight - SIZE * 0.72);
+    sphere.style.transform = 'rotate(-8deg)';
+    return;
+  }
+
+  /* DVD bounce + slow roll. Image transition fires on each edge/footer bounce. */
+  var contactEl = document.getElementById('contact');
+  var x = window.innerWidth * 0.30, y = window.innerHeight * 0.34;
+  var speed = 38, ang = Math.random() * Math.PI * 2;
+  var vx = Math.cos(ang) * speed, vy = Math.sin(ang) * speed;
+  var roll = 0, ROLL = 7, last = 0, raf = 0;
+
+  function step(t) {
+    if (!last) last = t;
+    var dt = (t - last) / 1000; last = t; if (dt > 0.1) dt = 0.1;
+    var maxX = window.innerWidth - SIZE, maxY = window.innerHeight - SIZE;
+    /* bounce off the footer's top edge as it enters, then fade out once the
+       contact panel takes over the viewport — so it's never obscured */
+    if (contactEl) {
+      var ft = contactEl.getBoundingClientRect().top, vh2 = window.innerHeight;
+      var cover = Math.max(0, Math.min(1, (vh2 - ft) / vh2));
+      orb.style.opacity = (1 - Math.max(0, (cover - 0.45) / 0.55)).toFixed(2);
+      if (ft < vh2) maxY = Math.min(maxY, Math.max(SIZE * 0.22, ft - SIZE + 28));
+    }
+    x += vx * dt; y += vy * dt;
+    var bounced = false;
+    if (x <= 0) { x = 0; vx = Math.abs(vx); bounced = true; } else if (x >= maxX) { x = maxX; vx = -Math.abs(vx); bounced = true; }
+    if (y <= 0) { y = 0; vy = Math.abs(vy); bounced = true; } else if (y >= maxY) { y = maxY; vy = -Math.abs(vy); bounced = true; }
+    if (bounced) cycle();                 // morph to the next reflection on bounce
+    roll += (vx >= 0 ? 1 : -1) * ROLL * dt;
+    place(x, y);
+    sphere.style.transform = 'rotate(' + roll.toFixed(2) + 'deg)';
+    raf = requestAnimationFrame(step);
+  }
+  raf = requestAnimationFrame(step);
+
+  window.addEventListener('resize', function () {
+    var mx = window.innerWidth - SIZE, my = window.innerHeight - SIZE;
+    if (x > mx) x = Math.max(0, mx); if (y > my) y = Math.max(0, my);
+  }, { passive: true });
+
+  /* liquid-melt image cycle — the chrome liquefies and reforms with the next image */
+  var meltRaf = 0, meltStart = 0, nextName = null, melting = false;
+  var MELT_DUR = 1700, MELT_PEAK = 50;
+  function meltCancel() {
+    if (meltRaf) { cancelAnimationFrame(meltRaf); meltRaf = 0; }
+    if (melting) { sphere.style.filter = 'none'; if (meltDisp) meltDisp.setAttribute('scale', '0'); curEnv.style.opacity = '1'; stgEnv.style.opacity = '0'; melting = false; }
+  }
+  function meltFrame(t) {
+    if (!meltStart) meltStart = t;
+    var p = (t - meltStart) / MELT_DUR;
+    if (p >= 1) {
+      sphere.style.filter = 'none'; if (meltDisp) meltDisp.setAttribute('scale', '0');
+      curEnv.style.opacity = '0'; stgEnv.style.opacity = '1';
+      var tmp = curEnv; curEnv = stgEnv; stgEnv = tmp;        // staged is now current
+      melting = false; meltRaf = 0; return;
+    }
+    var e = Math.sin(Math.PI * p); e = e * e * (3 - 2 * e);   // wave swell 0..1..0
+    if (meltDisp) meltDisp.setAttribute('scale', (e * MELT_PEAK).toFixed(1));
+    var f = p * p * (3 - 2 * p);                              // smooth cross-fade old->next
+    curEnv.style.opacity = (1 - f).toFixed(3);
+    stgEnv.style.opacity = f.toFixed(3);
+    meltRaf = requestAnimationFrame(meltFrame);
+  }
+  function cycle() {
+    if (document.hidden || melting) return;
+    idx = (idx + 1 + ((Math.random() * (IMAGES.length - 1)) | 0)) % IMAGES.length;
+    nextName = IMAGES[idx];
+    setLayer(stgEnv, nextName);          // stage the next reflection (hidden behind)
+    melting = true; meltStart = 0;
+    sphere.style.filter = 'url(#orbMelt)';
+    meltRaf = requestAnimationFrame(meltFrame);
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { cancelAnimationFrame(raf); last = 0; meltCancel(); }
+    else { raf = requestAnimationFrame(step); }
+  });
 })();

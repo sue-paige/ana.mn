@@ -48,6 +48,9 @@
   <!-- hyperreal water droplets (built by JS): refract the page + reflect her work -->
   <div class="droplets" id="droplets" aria-hidden="true"></div>
 
+  <!-- deepest parallax: faint building texture behind absolutely everything -->
+  <div id="bg-deep" aria-hidden="true"></div>
+
   <!-- ===================== DYNAMIC BACKGROUND STAGE ===================== -->
   <div class="bgstage" id="bgstage" aria-hidden="true">
     <div class="layer" id="bg-arch"   data-speed="0.04"><img src="/assets/img/bg/far-arch.webp" alt="" loading="eager" decoding="async"></div>
@@ -89,6 +92,41 @@
 
     <div class="layer" id="bg-vig"></div>
   </div>
+
+  <!-- deep-background CHROME sphere: mirror-reflects a random one of her images,
+       bounces + slowly rolls, and liquid-melts when cycling images. JS-driven. -->
+  <div id="orb-stage" aria-hidden="true">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <filter id="sphereWrap" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+          <feImage id="orbLensMap" result="nmap" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none"/>
+          <feDisplacementMap in="SourceGraphic" in2="nmap" scale="210" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <!-- liquid melt, used only during an image-cycle transition (scale via JS) -->
+        <filter id="orbMelt" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+          <feTurbulence id="orbMeltTurb" type="fractalNoise" baseFrequency="0.011 0.014" numOctaves="2" seed="5" result="mn"/>
+          <feDisplacementMap id="orbMeltDisp" in="SourceGraphic" in2="mn" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+      </defs>
+    </svg>
+    <div id="orb">
+      <div class="orb-sphere" id="orbSphere">
+        <div class="orb-env" id="orbEnvA"></div>
+        <div class="orb-env" id="orbEnvB"></div>
+        <div class="orb-tone"></div>
+        <div class="orb-chrome"></div>
+        <div class="orb-bounce"></div>
+        <div class="orb-crown"></div>
+        <div class="orb-spec"></div>
+        <div class="orb-edge"></div>
+        <div class="orb-rim"></div>
+        <div class="orb-lip"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- mid parallax: portal image, in front of the chrome orb -->
+  <div id="bg-mid" aria-hidden="true"></div>
 
   <div class="readout" id="readout" aria-hidden="true">
     <span><span class="lab">LAT </span><span id="ro-lat">37.7749</span></span>
