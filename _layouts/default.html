@@ -4,6 +4,53 @@
   {% include head.html %}
 </head>
 <body id="top">
+
+  <!-- ===================== DYNAMIC BACKGROUND STAGE ===================== -->
+  <div class="bgstage" id="bgstage" aria-hidden="true">
+    <div class="layer" id="bg-arch"   data-speed="0.04"><img src="/assets/img/bg/far-arch.webp" alt="" loading="eager" decoding="async"></div>
+    <div class="layer" id="bg-ink"    data-speed="0.07"><img src="/assets/img/bg/far-ink.webp" alt="" decoding="async"></div>
+    <div class="layer" id="bg-streak" data-speed="0.16"><img src="/assets/img/bg/mid-streak.webp" alt="" decoding="async"></div>
+    <div class="layer" id="bg-banner" data-speed="0.26"><img src="/assets/img/bg/wide-banner.webp" alt="" decoding="async"></div>
+    <div class="layer" id="bg-chrome" data-speed="0.40"><img src="/assets/img/bg/near-chrome.webp" alt="" decoding="async"></div>
+    <div class="layer" id="bg-portal" data-speed="0.12"><img src="/assets/img/bg/atmos-portal.webp" alt="" decoding="async"></div>
+
+    <div class="layer" id="bg-fig" data-speed="0.34"><div class="sil"></div><div class="sil b"></div></div>
+
+    <div class="layer" id="bg-grid"    data-speed="0.10"></div>
+    <div class="layer" id="bg-mullion" data-speed="0.20"></div>
+    <div class="layer" id="bg-mesh"></div>
+    <div class="layer" id="bg-scan"></div>
+
+    <div class="layer" id="bg-ghost" data-speed="0.30">
+      <div class="word" id="ghost-a">soft club</div>
+      <div class="word echo" id="ghost-a2">soft club</div>
+      <div class="word fill" id="ghost-b">relax</div>
+    </div>
+
+    <div class="layer" id="bg-scrim"></div>
+
+    <div class="layer" id="bg-frame">
+      <svg viewBox="0 0 1000 1000" preserveAspectRatio="none">
+        <rect class="bg-frameline" x="22" y="22" width="956" height="956"></rect>
+        <path class="bg-crop" d="M22 60 L22 22 L60 22"></path>
+        <path class="bg-crop" d="M940 22 L978 22 L978 60"></path>
+        <path class="bg-crop" d="M978 940 L978 978 L940 978"></path>
+        <path class="bg-crop" d="M60 978 L22 978 L22 940"></path>
+        <g id="bg-ruler-top"></g>
+        <g id="bg-ruler-left"></g>
+      </svg>
+    </div>
+
+    <div class="layer" id="bg-vig"></div>
+  </div>
+
+  <div class="readout" id="readout" aria-hidden="true">
+    <span><span class="lab">LAT </span><span id="ro-lat">37.7749</span></span>
+    <span><span class="lab">LON </span><span id="ro-lon">-122.4194</span></span>
+    <span><span class="lab">SCR </span><span id="ro-scr">000.0%</span></span>
+    <span><span class="lab">GATE </span><span id="ro-gate">A</span></span>
+  </div>
+
   {{ content }}
   <script src="/assets/js/main.js" defer></script>
 </body>

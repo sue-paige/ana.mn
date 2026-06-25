@@ -84,3 +84,114 @@
     update();
   }
 })();
+
+/* ===========================================================================
+   DYNAMIC BACKGROUND ENGINE — parallax + cross-fade + breathing.
+   One rAF loop, transform/opacity only. Reduced-motion = CSS static (no loop).
+   =========================================================================== */
+(function () {
+  'use strict';
+  var stage = document.getElementById('bgstage');
+  if (!stage) return;
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function $(id) { return document.getElementById(id); }
+
+  /* build SVG tick rulers once */
+  (function rulers() {
+    var top = $('bg-ruler-top'), left = $('bg-ruler-left');
+    if (!top || !left) return;
+    var i, x, y, big, s = '';
+    for (i = 0; i <= 40; i++) { x = 22 + i * (956 / 40); big = (i % 5 === 0); s += '<line class="bg-tick" x1="' + x.toFixed(1) + '" y1="22" x2="' + x.toFixed(1) + '" y2="' + (big ? 38 : 30) + '"/>'; }
+    top.innerHTML = s; s = '';
+    for (i = 0; i <= 40; i++) { y = 22 + i * (956 / 40); big = (i % 5 === 0); s += '<line class="bg-tick" x1="22" y1="' + y.toFixed(1) + '" x2="' + (big ? 38 : 30) + '" y2="' + y.toFixed(1) + '"/>'; }
+    left.innerHTML = s;
+  })();
+
+  var roScr = $('ro-scr'), roLat = $('ro-lat'), roLon = $('ro-lon'), roGate = $('ro-gate');
+  if (REDUCED) { if (roScr) roScr.textContent = '000.0%'; return; }
+
+  var generic = Array.prototype.filter.call(
+    document.querySelectorAll('.layer[data-speed]'),
+    function (el) { return el.id !== 'bg-portal' && el.id !== 'bg-ghost'; }
+  ).map(function (el) { return { el: el, speed: parseFloat(el.getAttribute('data-speed')) || 0 }; });
+
+  var bgArch = $('bg-arch'), bgInk = $('bg-ink'), bgStreak = $('bg-streak'),
+      bgBanner = $('bg-banner'), bgChrome = $('bg-chrome'), bgPortal = $('bg-portal'),
+      bgFig = $('bg-fig'), bgVig = $('bg-vig'), bgScrim = $('bg-scrim'),
+      bgMesh = $('bg-mesh'), bgGrid = $('bg-grid');
+  var ghostA = $('ghost-a'), ghostA2 = $('ghost-a2'), ghostB = $('ghost-b');
+  var contact = $('contact');
+
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function ramp(p, a, b) { return clamp((p - a) / (b - a), 0, 1); }
+  function band(p, a, b, c, d) { if (p <= a || p >= d) return 0; if (p < b) return ramp(p, a, b); if (p > c) return 1 - ramp(p, c, d); return 1; }
+
+  var targetY = window.pageYOffset || 0, smoothY = targetY;
+  var vh = window.innerHeight, docH = 1, running = false;
+  function measure() { vh = window.innerHeight; docH = Math.max(1, document.documentElement.scrollHeight - vh); }
+
+  function set(el, o) { if (el) el.style.opacity = o.toFixed(3); }
+
+  function frame(now) {
+    smoothY = lerp(smoothY, targetY, 0.12);
+    var y = smoothY, prog = clamp(y / docH, 0, 1);
+    var t = (now || 0) * 0.001;  /* seconds, for breathing */
+
+    /* parallax — generic layers translate at their own speed */
+    for (var i = 0; i < generic.length; i++) {
+      generic[i].el.style.transform = 'translate3d(0,' + (-y * generic[i].speed).toFixed(2) + 'px,0)';
+    }
+
+    /* contact proximity (robust, rect-based) */
+    var cIn = 0, cActive = false;
+    if (contact) {
+      var rt = contact.getBoundingClientRect().top;
+      cIn = clamp((vh - rt) / (vh * 0.9), 0, 1);
+      cActive = rt < vh * 0.5;
+    }
+
+    /* portal bloom — centered + scroll drift + slow breathing */
+    if (bgPortal) {
+      bgPortal.style.transform = 'translate3d(' + (Math.sin(t * 0.32) * 16).toFixed(2) + 'px,' + ((-y * 0.06) + Math.cos(t * 0.24) * 18).toFixed(2) + 'px,0)';
+    }
+    /* ghost words — counter-drift + sway */
+    if (ghostA) ghostA.style.transform = 'translate(-50%,-50%) translate3d(' + (-y * 0.05 + Math.sin(t * 0.2) * 7).toFixed(2) + 'px,' + (y * 0.12).toFixed(2) + 'px,0)';
+    if (ghostA2) ghostA2.style.transform = 'translate(-50%,-50%) translate3d(' + (-y * 0.05 + 26 + Math.sin(t * 0.2 + 1) * 7).toFixed(2) + 'px,' + (y * 0.12 + 18).toFixed(2) + 'px,0)';
+    if (ghostB) ghostB.style.transform = 'translate(-50%,-50%) translate3d(' + (y * 0.08 + Math.cos(t * 0.17) * 9).toFixed(2) + 'px,' + (-y * 0.06 - 220).toFixed(2) + 'px,0)';
+
+    /* cross-fades (prog 0..1 over the whole page) + breathing on atmospherics */
+    var br = 0.92 + 0.08 * Math.sin(t * 0.5);
+    set(bgArch, 0.10 + 0.26 * band(prog, -1, 0, 0.18, 0.46));
+    set(bgInk, 0.22 * band(prog, 0, 0.03, 0.16, 0.34) * br);
+    set(bgStreak, 0.40 * band(prog, 0.10, 0.26, 0.52, 0.80));
+    set(bgBanner, 0.50 * band(prog, 0.20, 0.36, 0.60, 0.86));
+    set(bgChrome, 0.46 * band(prog, 0.26, 0.42, 0.64, 0.90));
+    set(bgFig, 0.62 * band(prog, 0.04, 0.16, 0.38, 0.62));
+    set(bgPortal, 1.0 * cIn * br);
+    set(bgVig, 0.5 + 0.4 * cIn);
+    set(bgScrim, 1 - 0.72 * cIn);
+    if (bgMesh) set(bgMesh, 0.55 * (1 - 0.7 * cIn));
+    if (bgGrid) set(bgGrid, 0.55 - 0.18 * cIn);
+
+    if (cActive) document.body.classList.add('contact-active');
+    else document.body.classList.remove('contact-active');
+
+    /* live readout */
+    if (roScr) roScr.textContent = (prog * 100).toFixed(1).replace(/^(\d)\./, '00$1.').replace(/^(\d\d)\./, '0$1.');
+    if (roLat) roLat.textContent = (37.7749 + (prog - 0.5) * 0.05).toFixed(4);
+    if (roLon) roLon.textContent = (-122.4194 + (prog - 0.5) * 0.04).toFixed(4);
+    if (roGate) roGate.textContent = String.fromCharCode(65 + Math.min(4, Math.floor(prog * 5)));
+
+    requestAnimationFrame(frame);
+  }
+
+  function onScroll() { targetY = window.pageYOffset || document.documentElement.scrollTop || 0; }
+
+  measure();
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () { measure(); }, { passive: true });
+  window.addEventListener('load', measure);
+  requestAnimationFrame(frame);
+})();

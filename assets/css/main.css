@@ -459,3 +459,132 @@ figure.cell.ar-sq{   aspect-ratio:1/1; }
   .marquee__track{ animation:none; }
   figure.cell figcaption{ transform:translateY(0); }
 }
+
+/* ===========================================================================
+   DYNAMIC BACKGROUND — "Transit Terminal" parallax stage (her images, duotone)
+   Fixed full-viewport stage behind content. Scroll drives parallax + cross-fade.
+   GPU-only (transform/opacity); blur is baked into the webp layers.
+   =========================================================================== */
+.bgstage{
+  position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  contain:strict;
+  background:radial-gradient(120% 90% at 50% 8%, #eef0f0 0%, var(--paper) 44%, var(--paper-deep) 100%);
+}
+/* the body grain is superseded by the stage's own mesh/scan */
+body::before{ display:none; }
+/* content rides above the stage */
+main{ position:relative; z-index:1; }
+
+.layer{
+  position:absolute; inset:0; width:100%; height:100%;
+  will-change:transform,opacity; backface-visibility:hidden;
+}
+.layer img{
+  position:absolute; left:50%; top:0; width:128%; max-width:none;
+  transform:translateX(-50%); display:block; user-select:none; -webkit-user-drag:none;
+}
+
+/* image layers (back -> front); opacities driven by JS */
+#bg-arch{ opacity:0; mix-blend-mode:multiply; }
+#bg-arch img{ top:-8%; height:118%; object-fit:cover; filter:saturate(.85); }
+#bg-ink{ opacity:0; mix-blend-mode:multiply; }
+#bg-ink img{ top:-4%; width:140%; }
+#bg-streak{ opacity:0; mix-blend-mode:soft-light; }
+#bg-streak img{ top:-10%; width:150%; height:120%; object-fit:cover; }
+#bg-banner{ opacity:0; mix-blend-mode:luminosity; }
+#bg-banner img{ top:32%; width:120%; }
+#bg-chrome{ opacity:0; mix-blend-mode:luminosity; }
+#bg-chrome img{ top:18%; width:132%; }
+#bg-portal{ opacity:0; mix-blend-mode:screen; }
+#bg-portal img{ top:64%; left:50%; width:128%; transform:translate(-50%,-50%); }
+
+/* drifting silhouette accents */
+#bg-fig{ opacity:0; }
+#bg-fig .sil{
+  position:absolute; bottom:-2%; left:13%; width:130px; height:60%;
+  background:linear-gradient(180deg, rgba(92,97,94,0), rgba(92,97,94,.20));
+  border-radius:50% 50% 46% 46% / 30% 30% 8% 8%; filter:blur(8px);
+}
+#bg-fig .sil.b{ left:auto; right:10%; width:96px; height:48%; opacity:.7; }
+
+/* HUD overlay layers */
+#bg-grid{
+  opacity:.46;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 calc(100%/14 - 1px), rgba(92,97,94,.15) calc(100%/14 - 1px) calc(100%/14)),
+    repeating-linear-gradient(0deg, transparent 0 119px, rgba(92,97,94,.09) 119px 120px);
+}
+#bg-mullion{
+  opacity:.55;
+  background-image:repeating-linear-gradient(90deg, transparent 0 calc(100%/3.5 - 2px), rgba(127,147,163,.24) calc(100%/3.5 - 2px) calc(100%/3.5));
+}
+#bg-mesh{
+  opacity:.5; mix-blend-mode:multiply;
+  background-image:radial-gradient(rgba(28,30,26,.32) .6px, transparent .7px); background-size:4px 4px;
+}
+#bg-scan{
+  opacity:.32; mix-blend-mode:multiply;
+  background-image:repeating-linear-gradient(0deg, rgba(28,30,26,.05) 0 1px, transparent 1px 3px);
+}
+#bg-ghost{ opacity:.9; }
+#bg-ghost .word{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  font-family:var(--disp); font-variation-settings:'wght' 800,'wdth' 122;
+  font-size:clamp(80px,21vw,330px); letter-spacing:-.02em; line-height:.8;
+  text-transform:lowercase; white-space:nowrap;
+  color:transparent; -webkit-text-stroke:1.2px rgba(92,97,94,.18);
+}
+#bg-ghost .word.echo{ -webkit-text-stroke:1px rgba(92,97,94,.10); }
+#bg-ghost .word.fill{ -webkit-text-stroke:0; color:rgba(127,147,163,.06); }
+#bg-scrim{
+  background:linear-gradient(180deg,
+    rgba(236,231,221,.50) 0%, rgba(236,231,221,.32) 18%, rgba(236,231,221,.30) 50%,
+    rgba(236,231,221,.40) 82%, rgba(236,231,221,.60) 100%);
+}
+#bg-frame{ opacity:.8; }
+#bg-frame svg{ position:absolute; inset:0; width:100%; height:100%; }
+.bg-frameline{ stroke:rgba(92,97,94,.38); stroke-width:1; fill:none; vector-effect:non-scaling-stroke; }
+.bg-tick{ stroke:rgba(92,97,94,.36); stroke-width:1; vector-effect:non-scaling-stroke; }
+.bg-crop{ stroke:var(--ink-soft); stroke-width:1.4; fill:none; vector-effect:non-scaling-stroke; }
+#bg-vig{
+  opacity:.5;
+  background:radial-gradient(125% 115% at 50% 42%, transparent 52%, rgba(28,30,26,.12) 86%, rgba(28,30,26,.30) 100%);
+}
+
+/* live coordinate readout (transit HUD) */
+.readout{
+  position:fixed; left:clamp(14px,4vw,40px); bottom:13px; z-index:15;
+  font-family:var(--mono); font-size:10px; letter-spacing:.14em;
+  color:var(--ink-soft); pointer-events:none; mix-blend-mode:multiply;
+  display:flex; gap:1.5em;
+}
+.readout .lab{ color:var(--ink-faint); }
+.contact-active .readout{ color:var(--chrome-3); mix-blend-mode:screen; }
+.contact-active .readout .lab{ color:var(--chrome-5); }
+
+/* let the bloom surface through the near-black contact panel (rows stay crisp;
+   the glow gathers low, around the giant ana.mn wordmark) */
+.contact{ background:rgba(24,26,22,.82); }
+
+/* reduced motion: tasteful static composition, no parallax */
+@media(prefers-reduced-motion:reduce){
+  .layer{ will-change:auto !important; }
+  #bg-arch{ opacity:.15 !important; } #bg-ink{ opacity:.10 !important; }
+  #bg-streak{ opacity:.16 !important; } #bg-banner{ opacity:.18 !important; }
+  #bg-chrome{ opacity:.13 !important; } #bg-portal{ opacity:0 !important; }
+  #bg-grid{ opacity:.4 !important; } #bg-mullion{ opacity:.46 !important; }
+  #bg-ghost{ opacity:.8 !important; } #bg-fig{ opacity:.45 !important; }
+  .layer,.layer img{ transform:translateX(-50%) !important; }
+  #bg-grid,#bg-mullion,#bg-mesh,#bg-scan,#bg-scrim,#bg-frame,#bg-vig,#bg-fig{ transform:none !important; }
+  #bg-portal img{ transform:translate(-50%,-50%) !important; }
+  #bg-ghost .word{ transform:translate(-50%,-50%) !important; }
+}
+
+/* mobile: lighter, no overflow */
+@media(max-width:720px){
+  #bg-ink,#bg-streak,#bg-mesh,#bg-scan{ display:none; }
+  #bg-grid{ opacity:.3; }
+  .layer img{ width:172%; }
+  #bg-portal img{ width:200%; }
+  .readout{ font-size:9px; gap:1em; }
+}

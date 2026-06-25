@@ -21,9 +21,8 @@ bundle exec jekyll serve --livereload   # http://localhost:4000
 ```
 
 ## Deploy
-Pushing to `main` triggers `.github/workflows/jekyll.yml`, which builds with
-Jekyll 4.4 and deploys to GitHub Pages. Custom domain `ana.mn` is set via `CNAME`.
-
-In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions.**
-Point the `ana.mn` DNS at GitHub Pages (A/AAAA apex records, or a CNAME on a
-subdomain) and enable *Enforce HTTPS*.
+GitHub Pages builds it natively — **no Actions/CI**. In the repo:
+**Settings → Pages → Build and deployment → Source: Deploy from a branch →
+`main` / root.** Pages runs Jekyll for us; the only plugins (jekyll-seo-tag,
+jekyll-sitemap) are on the Pages allowlist. Custom domain `ana.mn` is set via
+`CNAME`; point its DNS at GitHub Pages and enable *Enforce HTTPS*.

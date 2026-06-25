@@ -11,3 +11,4 @@ scratchpad/
 *.log
 .gstack/
 .claude/
+_bgdemo/
