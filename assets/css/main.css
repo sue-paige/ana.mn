@@ -45,7 +45,10 @@
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
-html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; scrollbar-gutter:stable; }
+/* lock scroll + hide scrollbar while the intro drain plays (no layout shift, thanks to scrollbar-gutter) */
+html.intro-lock{ overflow:hidden; }
+html.intro-lock body{ overflow:hidden; height:100vh; }
 
 body{
   margin:0;

@@ -37,6 +37,13 @@
           values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 16 -6" result="beads"/>
         <feComposite in="droplets" in2="beads" operator="atop"/>
       </filter>
+
+      <!-- tap-to-liquify: a turbulence wobble pulse, scale/freq driven by JS per tap -->
+      <filter id="tapLiquid" x="-18%" y="-18%" width="136%" height="136%" color-interpolation-filters="sRGB">
+        <feTurbulence id="tapTurb" type="fractalNoise" baseFrequency="0.011 0.013" numOctaves="2" seed="3" result="tt"/>
+        <feDisplacementMap id="tapDisp" in="SourceGraphic" in2="tt" scale="0"
+                           xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
     </defs>
   </svg>
 

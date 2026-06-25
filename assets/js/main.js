@@ -219,16 +219,14 @@
   if (!haunt) return;
 
   var HAUNT = 0.075;
-  var played = false;
-  try { played = sessionStorage.getItem('lm_intro') === '1'; } catch (e) {}
 
-  if (reduce || played) {
+  if (reduce) {
     if (intro && intro.parentNode) intro.parentNode.removeChild(intro);
-    haunt.style.opacity = reduce ? '0.05' : HAUNT;
+    haunt.style.opacity = '0.05';
   } else if (intro && introImg) {
+    document.documentElement.classList.add('intro-lock');   // lock scroll while the drain plays
     var DUR = 2800;
     var startDrain = function () {
-      try { sessionStorage.setItem('lm_intro', '1'); } catch (e) {}
       introImg.style.animation = 'introFade ' + DUR + 'ms cubic-bezier(.35,.05,.2,1) forwards';
       if (wash) wash.style.animation = 'introWashIn ' + DUR + 'ms ease-in-out forwards';
       setTimeout(function () {
@@ -238,6 +236,7 @@
       var done = false;
       var finish = function () {
         if (done) return; done = true;
+        document.documentElement.classList.remove('intro-lock');   // release scroll
         intro.style.display = 'none';
         introImg.style.filter = 'none';
         haunt.style.opacity = HAUNT;
@@ -264,4 +263,49 @@
     }, { passive: true });
     (function breathe() { applyDrift(); requestAnimationFrame(breathe); })();
   }
+})();
+
+/* ===========================================================================
+   TAP TO LIQUIFY — tapping an image ripples it (turbulence wobble), then settles.
+   One shared filter, one image at a time; filter removed at rest (zero idle cost).
+   =========================================================================== */
+(function () {
+  'use strict';
+  var disp = document.getElementById('tapDisp');
+  var turb = document.getElementById('tapTurb');
+  if (!disp || !turb) return;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if (reduce) return;
+
+  var DUR = 920, current = null, raf = null, start = 0, seed = 1;
+
+  function pulse(ts) {
+    var t = (ts - start) / DUR;
+    if (t >= 1) { stop(); return; }
+    var env = Math.sin(Math.PI * t);            // 0 -> 1 -> 0 over the pulse
+    var e = env * env * (3 - 2 * env);          // smootherstep on the swell
+    disp.setAttribute('scale', (e * 34).toFixed(2));
+    turb.setAttribute('baseFrequency', (0.009 + e * 0.010).toFixed(4) + ' ' + (0.011 + e * 0.013).toFixed(4));
+    raf = requestAnimationFrame(pulse);
+  }
+  function clear(img) { if (img) { img.style.filter = ''; img.style.willChange = ''; } }
+  function stop() { disp.setAttribute('scale', '0'); clear(current); current = null; if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  function trigger(img) {
+    if (current && current !== img) clear(current);
+    current = img;
+    turb.setAttribute('seed', String((seed++ % 90) + 1));
+    img.style.filter = 'url(#tapLiquid)';
+    img.style.willChange = 'filter';
+    start = performance.now();
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(pulse);
+  }
+
+  var containers = document.querySelectorAll('figure.cell, .hero__strip, .portal');
+  Array.prototype.forEach.call(containers, function (c) {
+    var img = c.querySelector('img');
+    if (!img) return;
+    c.style.cursor = 'pointer';
+    c.addEventListener('click', function () { trigger(img); });
+  });
 })();
