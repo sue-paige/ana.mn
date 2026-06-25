@@ -1,0 +1,13 @@
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+vendor/
+.bundle/
+_assets_raw/
+_mockups/
+scratchpad/
+.DS_Store
+*.log
+.gstack/
+.claude/

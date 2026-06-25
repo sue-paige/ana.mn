@@ -1,0 +1,299 @@
+---
+layout: default
+---
+{% assign p = site.data.profile %}
+
+<!-- ============================ TRANSIT TOP BAR ============================ -->
+<header class="topbar" role="banner">
+  <div class="wrap">
+    <a class="topbar__mark" href="#top" aria-label="ana.mn — home">ana<span>.</span>mn</a>
+    <nav class="topbar__meta" aria-label="status">
+      <span class="tag topbar__live"><span class="topbar__dot" aria-hidden="true"></span>Open for commissions</span>
+      <time class="tag topbar__clock" id="clock" aria-label="Local time, San Francisco">SF&nbsp;··:··</time>
+      <span class="tag hide-sm">{{ p.coordinates }}</span>
+      <span class="tag tag--ink">SOFT&nbsp;CLUB</span>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================================ HERO ================================ -->
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <div class="hero__kicker reveal">
+      <span class="tag tag--ink">Member Dossier №&nbsp;001</span>
+      <span class="tag">Est.&nbsp;{{ p.member_since }}</span>
+      <span class="tag">{{ p.tagline }}</span>
+    </div>
+
+    <h1 class="hero__title" id="hero-title">
+      <span class="sr-only">{{ p.name }} — {{ p.tagline }}</span>
+      <span class="hero__l1 reveal" aria-hidden="true">memoria</span>
+      <span class="hero__l2 reveal" data-delay="1" aria-hidden="true">líquida</span>
+    </h1>
+
+    <div class="hero__sub">
+      <div class="reveal" data-delay="2">
+        <p class="hero__name">{{ p.name | replace: ' ', '&nbsp;' }}
+          <span class="hero__sig" aria-hidden="true">{{ p.handle_styled }}</span>
+        </p>
+        <p class="tag" style="margin-top:8px">{{ p.pronouns }}</p>
+      </div>
+      <p class="hero__roles reveal" data-delay="3">
+        {% for r in p.roles %}{% if forloop.first %}<b>{{ r }}</b>{% else %} <span class="sep">/</span> {{ r }}{% endif %}{% endfor %}
+        <br>{{ p.location }}
+      </p>
+    </div>
+
+    <figure class="hero__strip reveal" data-delay="2">
+      <picture>
+        <source srcset="/assets/img/banner.webp" type="image/webp">
+        <img src="/assets/img/banner.jpg" width="1100" height="400" loading="eager" fetchpriority="high"
+             alt="A liquid-chrome sphere caught in green motion-blur — Ana Apango's signature Y2K image.">
+      </picture>
+      <figcaption>
+        <span class="tag">FILE / chrome.memory.001</span>
+        <span class="tag">cross-processed · lomo</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================== MARQUEE =============================== -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track">
+      {% for n in (1..2) %}
+      <span class="marquee__item">
+        {% for d in p.disciplines %}{{ d | replace: ' ', '&nbsp;' }}{% unless forloop.last %} <span class="marquee__star">✦</span> {% endunless %}{% endfor %}
+        <span class="marquee__star">✦</span>&nbsp;
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- =========================== ABOUT / DOSSIER ========================== -->
+  <section class="about wrap" aria-labelledby="about-title">
+    <div class="about__grid">
+
+      <figure class="portal reveal">
+        <picture>
+          <source srcset="/assets/img/portal.webp" type="image/webp">
+          <img src="/assets/img/portal.jpg" width="640" height="640" loading="lazy"
+               alt="A hand reaching through a glowing dark portal — an ethereal self-portrait by Ana Apango.">
+        </picture>
+        <span class="portal__label">ID / {{ p.handle_styled }}</span>
+        <span class="portal__chip">SOFT CLUB</span>
+      </figure>
+
+      <div class="about__body">
+        <p class="tag eyebrow" id="about-title">§ 01 — The Member</p>
+        <p class="about__lead reveal">
+          A practice built on <em>storytelling</em>, culture, and immersive
+          experience — photography as <em>liquid memory</em>.
+        </p>
+        <p class="about__p reveal" data-delay="1">{{ p.bio }}</p>
+        <p class="about__p reveal" data-delay="2">{{ p.bio_2 }}</p>
+
+        <div class="chips reveal" data-delay="2" role="list" aria-label="Disciplines">
+          {% for d in p.disciplines %}<span class="chip" role="listitem">{{ d }}</span>{% endfor %}
+        </div>
+
+        <dl class="ledger reveal" data-delay="3">
+          <div class="ledger__cell">
+            <dt class="ledger__k tag">Member since</dt>
+            <dd class="ledger__v">{{ p.member_since }}</dd>
+          </div>
+          <div class="ledger__cell">
+            <dt class="ledger__k tag">Practice</dt>
+            <dd class="ledger__v">{{ p.years }}&nbsp;years</dd>
+          </div>
+          <div class="ledger__cell">
+            <dt class="ledger__k tag">Status</dt>
+            <dd class="ledger__v">Freelance</dd>
+          </div>
+          <div class="ledger__cell">
+            <dt class="ledger__k tag">Based</dt>
+            <dd class="ledger__v">SF&nbsp;·&nbsp;CA</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== GALLERY =============================== -->
+  <section class="work wrap" id="work" aria-labelledby="work-title">
+    <div class="work__head">
+      <h2 class="work__title" id="work-title">Selected<br><em>works</em></h2>
+      <p class="tag work__note">§ 02 — Archive · cross-processed lomography &amp; new-media experiments, 2020—2026</p>
+    </div>
+
+    <div class="grid">
+
+      <figure class="cell c-4 reveal ar-wide">
+        <picture><source srcset="/assets/img/submerge.webp" type="image/webp">
+          <img src="/assets/img/submerge.jpg" width="808" height="632" loading="lazy"
+               alt="A pink-haired figure in vivid neon-green water wearing sunglasses — Ana Apango's signature cross-processed portrait."></picture>
+        <span class="cell__idx">01 / submersion</span>
+        <figcaption><span class="t">Submersion</span><span class="n">PORTRAIT · LOMO</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-land" data-delay="1">
+        <picture><source srcset="/assets/img/veil.webp" type="image/webp">
+          <img src="/assets/img/veil.jpg" width="808" height="632" loading="lazy"
+               alt="A figure resting on draped cream and tan fabric, an arm across the face — soft, muted, lived-in."></picture>
+        <span class="cell__idx">02 / veil</span>
+        <figcaption><span class="t">Veil</span><span class="n">DOCUMENTARY</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-tall" data-delay="2">
+        <picture><source srcset="/assets/img/bloom.webp" type="image/webp">
+          <img src="/assets/img/bloom.jpg" width="640" height="800" loading="lazy"
+               alt="Green and magenta particle bloom dispersing on black — abstract new-media work."></picture>
+        <span class="cell__idx">03 / bloom</span>
+        <figcaption><span class="t">Bloom</span><span class="n">NEW MEDIA</span></figcaption>
+      </figure>
+
+      <figure class="cell c-3 reveal ar-land" data-delay="1">
+        <picture><source srcset="/assets/img/greenneon.webp" type="image/webp">
+          <img src="/assets/img/greenneon.jpg" width="808" height="632" loading="lazy"
+               alt="A figure lit in magenta and green neon — moody nightlife portrait."></picture>
+        <span class="cell__idx">04 / green hour</span>
+        <figcaption><span class="t">Green Hour</span><span class="n">PORTRAIT · NEON</span></figcaption>
+      </figure>
+
+      <figure class="cell c-3 reveal ar-land" data-delay="2">
+        <picture><source srcset="/assets/img/inkwater.webp" type="image/webp">
+          <img src="/assets/img/inkwater.jpg" width="808" height="632" loading="lazy"
+               alt="Blue ink dispersing through pale water — an abstract study."></picture>
+        <span class="cell__idx">05 / dispersal</span>
+        <figcaption><span class="t">Dispersal</span><span class="n">ABSTRACT</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-land" data-delay="1">
+        <picture><source srcset="/assets/img/field.webp" type="image/webp">
+          <img src="/assets/img/field.jpg" width="808" height="632" loading="lazy"
+               alt="A woman in a traditional red dress standing among white teepees in a field — documentary photograph."></picture>
+        <span class="cell__idx">06 / heritage</span>
+        <figcaption><span class="t">Heritage</span><span class="n">DOCUMENTARY</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-land" data-delay="2">
+        <picture><source srcset="/assets/img/headphones.webp" type="image/webp">
+          <img src="/assets/img/headphones.jpg" width="808" height="632" loading="lazy"
+               alt="A bare-shouldered figure seen from behind wearing headphones — urban-soft portrait."></picture>
+        <span class="cell__idx">07 / frequency</span>
+        <figcaption><span class="t">Frequency</span><span class="n">PORTRAIT</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-tall">
+        <picture><source srcset="/assets/img/wireframe.webp" type="image/webp">
+          <img src="/assets/img/wireframe.jpg" width="640" height="1136" loading="lazy"
+               alt="A red and blue glitch wireframe of a human body on black — digital art."></picture>
+        <span class="cell__idx">08 / wire body</span>
+        <figcaption><span class="t">Wire Body</span><span class="n">3D · GLITCH</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-land" data-delay="1">
+        <picture><source srcset="/assets/img/pastel.webp" type="image/webp">
+          <img src="/assets/img/pastel.jpg" width="808" height="632" loading="lazy"
+               alt="A pink-haired figure reclining in soft pastel-green light."></picture>
+        <span class="cell__idx">09 / pastel</span>
+        <figcaption><span class="t">Pastel Static</span><span class="n">PORTRAIT</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-land" data-delay="2">
+        <picture><source srcset="/assets/img/stained.webp" type="image/webp">
+          <img src="/assets/img/stained.jpg" width="808" height="632" loading="lazy"
+               alt="Two figures dressed in white against a colorful stained-glass backdrop."></picture>
+        <span class="cell__idx">10 / stained</span>
+        <figcaption><span class="t">Stained</span><span class="n">MIXED MEDIA</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-tall" data-delay="1">
+        <picture><source srcset="/assets/img/burst.webp" type="image/webp">
+          <img src="/assets/img/burst.jpg" width="540" height="960" loading="lazy"
+               alt="A purple radial light-burst, like a supernova — long-exposure work."></picture>
+        <span class="cell__idx">11 / supernova</span>
+        <figcaption><span class="t">Supernova</span><span class="n">LONG EXPOSURE</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-tall" data-delay="2">
+        <picture><source srcset="/assets/img/tower.webp" type="image/webp">
+          <img src="/assets/img/tower.jpg" width="640" height="800" loading="lazy"
+               alt="An urban building facade with windows lit warm at dusk."></picture>
+        <span class="cell__idx">12 / vertical city</span>
+        <figcaption><span class="t">Vertical City</span><span class="n">URBAN</span></figcaption>
+      </figure>
+
+      <figure class="cell c-2 reveal ar-tall">
+        <picture><source srcset="/assets/img/particle.webp" type="image/webp">
+          <img src="/assets/img/particle.jpg" width="540" height="960" loading="lazy"
+               alt="A pink and purple particle figure on black — digital art."></picture>
+        <span class="cell__idx">13 / particle</span>
+        <figcaption><span class="t">Particle</span><span class="n">DIGITAL ART</span></figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ============================ STATEMENT BAND ========================== -->
+  <section class="quote wrap" aria-label="Statement">
+    <p class="quote__eyebrow tag reveal">§ — the soul of the work</p>
+    <blockquote class="reveal">
+      <span class="quote__es">memoria</span> <span class="liq">líquida</span>
+    </blockquote>
+    <cite class="tag reveal" data-delay="1">“liquid memory” — {{ p.handle_styled }}</cite>
+  </section>
+
+</main>
+
+<!-- ===================== CONTACT / DEPARTURES TERMINAL ==================== -->
+<footer class="contact" id="contact">
+  <div class="wrap">
+
+    <div class="board__top">
+      <div class="reveal">
+        <p class="tag tag--bone">§ 03 — Outbound channels</p>
+        <h2 class="board__h">Now <em>boarding</em></h2>
+      </div>
+      <p class="board__status reveal" data-delay="1">
+        <b>Open for commissions.</b><br>
+        Freelance — {{ p.location }}<br>
+        {{ p.coordinates }} · present this card at the door
+      </p>
+    </div>
+
+    <div class="board reveal" data-delay="1">
+      <div class="board__head" aria-hidden="true">
+        <span>Gate</span><span>Destination</span><span>Handle</span><span>Status</span>
+      </div>
+      <nav class="board__rows" aria-label="Contact channels">
+        {% for c in p.contacts %}
+        {% case c.type %}
+          {% when 'instagram' %}{% assign code = 'IG' %}{% when 'email' %}{% assign code = 'EM' %}
+          {% when 'behance' %}{% assign code = 'BE' %}{% when 'linkedin' %}{% assign code = 'LI' %}
+          {% when 'whatsapp' %}{% assign code = 'WA' %}{% when 'sms' %}{% assign code = 'SM' %}
+          {% else %}{% assign code = 'CH' %}{% endcase %}
+        {% assign idx = forloop.index | prepend: '0' | slice: -2, 2 %}
+        {% assign external = false %}{% if c.url contains 'http' %}{% assign external = true %}{% endif %}
+        <a class="brow" href="{{ c.url }}"{% if external %} target="_blank" rel="noopener me"{% endif %}>
+          <span class="brow__gate"><span class="brow__code">{{ code }}·{{ idx }}</span></span>
+          <span class="brow__dest">{{ c.label }}</span>
+          <span class="brow__handle">{{ c.handle }}</span>
+          <span class="brow__status {% cycle 'boarding', 'ontime' %}">
+            <span class="brow__dot" aria-hidden="true"></span>{% cycle 'st': 'Boarding', 'On time' %}
+            <span class="brow__arrow" aria-hidden="true">↗</span>
+          </span>
+        </a>
+        {% endfor %}
+      </nav>
+    </div>
+
+    <div class="colophon">
+      <p class="colophon__mark" id="colophon-mark" aria-hidden="true">ana.mn</p>
+      <div class="colophon__meta">
+        <span class="tag">© {{ 'now' | date: '%Y' }} · {{ p.name }} — {{ p.tagline }}</span>
+        <span class="tag">Gen X Soft Club · Member №&nbsp;001</span>
+      </div>
+    </div>
+  </div>
+</footer>

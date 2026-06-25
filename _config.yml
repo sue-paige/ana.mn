@@ -1,0 +1,36 @@
+# ── ana.mn ──────────────────────────────────────────────────────────────
+# Single-page site for Ana Apango. "SOFT CLUB" — Gen X Soft Club aesthetic.
+
+title: "Ana Apango"
+tagline: "memoria líquida"
+description: >-
+  Ana Apango — multimedia visual artist, photographer & high-end retoucher
+  based in San Francisco / Bay Area. Portrait, documentary, abstract, digital
+  art, mixed media, video & new media.
+url: "https://ana.mn"
+lang: en
+
+author:
+  name: "Ana Apango"
+  email: "anpav@outlook.es"
+
+# Build
+markdown: kramdown
+sass:
+  style: compressed
+  sass_dir: assets/css
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - _assets_raw
+  - vendor
+  - .sass-cache
+  - scratchpad
+
+# No pagination, no posts — single landing page.

@@ -1,0 +1,82 @@
+# Single source of truth for all of Ana's content.
+name: "Ana Apango"
+handle_styled: "aήa̫ꉣ"          # her stylized IG signature
+pronouns: "She/Her · They/Them"
+tagline: "memoria líquida"
+tagline_en: "liquid memory"
+domain: "ana.mn"
+member_since: "MMXX"             # Behance member since April 2020
+years: "6"                      # years of practice
+
+roles:
+  - "Multimedia Visual Artist"
+  - "Photographer"
+  - "High-End Retoucher"
+
+status: "Freelance — open for commissions"
+location: "San Francisco / Bay Area"
+coordinates: "37.7749° N, 122.4194° W"
+
+# Full blurb (verbatim from her card)
+bio: >-
+  Multidisciplinary visual artist and photographer with experience across
+  portrait, documentary, abstract photography, digital art, mixed media, video
+  art, and new media practices. Passionate about storytelling, culture,
+  immersive experiences, audiovisual production, fashion, cinema, and creative
+  collaboration.
+bio_2: >-
+  Over the past six years, I've developed strong skills in project leadership,
+  teamwork, time management, and bringing creative ideas from concept to
+  execution.
+
+disciplines:
+  - "Portrait"
+  - "Documentary"
+  - "Abstract"
+  - "Digital Art"
+  - "Mixed Media"
+  - "Video Art"
+  - "New Media"
+
+# Contact / links (order = display order). type drives the icon + label.
+contacts:
+  - type: instagram
+    label: "Instagram"
+    handle: "@ppulppi"
+    url: "https://instagram.com/ppulppi"
+  - type: email
+    label: "Email"
+    handle: "anpav@outlook.es"
+    url: "mailto:anpav@outlook.es"
+  - type: behance
+    label: "Behance"
+    handle: "/pulpho"
+    url: "https://www.behance.net/pulpho"
+  - type: linkedin
+    label: "LinkedIn"
+    handle: "ana-apango"
+    url: "https://www.linkedin.com/in/ana-apango"
+  - type: whatsapp
+    label: "WhatsApp"
+    handle: "+1 (628) 358-1061"
+    url: "https://api.whatsapp.com/send?phone=16283581061"
+  - type: sms
+    label: "Text"
+    handle: "+1 (628) 358-1061"
+    url: "sms:+16283581061"
+
+# Gallery — her real work. side: photo (Behance/IG portraits) | digital (new media)
+# kind drives aspect handling. caption = wall-label text.
+gallery:
+  - { img: underwater, side: photo,   caption: "Submersion",      note: "portrait · lomo" }
+  - { img: pastel,     side: photo,   caption: "Pastel Static",   note: "portrait" }
+  - { img: chrome,     side: digital, caption: "Chrome Memory",   note: "new media" }
+  - { img: veil,       side: photo,   caption: "Veil",            note: "documentary" }
+  - { img: bloom,      side: digital, caption: "Bloom",           note: "generative" }
+  - { img: headphones, side: photo,   caption: "Frequency",       note: "portrait" }
+  - { img: tower,      side: digital, caption: "Vertical City",   note: "urban" }
+  - { img: greenneon,  side: photo,   caption: "Green Hour",      note: "portrait · neon" }
+  - { img: wireframe,  side: digital, caption: "Wire Body",       note: "3d / glitch" }
+  - { img: field,      side: photo,   caption: "Heritage",        note: "documentary" }
+  - { img: burst,      side: digital, caption: "Supernova",       note: "long exposure" }
+  - { img: inkwater,   side: photo,   caption: "Liquid Memory",   note: "abstract" }
