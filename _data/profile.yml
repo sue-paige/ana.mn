@@ -64,6 +64,10 @@ contacts:
     label: "Text"
     handle: "+1 (628) 358-1061"
     url: "sms:+16283581061"
+  - type: drex
+    label: "Drex"
+    handle: "/u/ana"
+    url: "https://demo.drex.style/u/ana"
 
 # Gallery — her real work. side: photo (Behance/IG portraits) | digital (new media)
 # kind drives aspect handling. caption = wall-label text.

@@ -272,6 +272,7 @@ layout: default
           {% when 'instagram' %}{% assign code = 'IG' %}{% when 'email' %}{% assign code = 'EM' %}
           {% when 'behance' %}{% assign code = 'BE' %}{% when 'linkedin' %}{% assign code = 'LI' %}
           {% when 'whatsapp' %}{% assign code = 'WA' %}{% when 'sms' %}{% assign code = 'SM' %}
+          {% when 'drex' %}{% assign code = 'DX' %}
           {% else %}{% assign code = 'CH' %}{% endcase %}
         {% assign idx = forloop.index | prepend: '0' | slice: -2, 2 %}
         {% assign external = false %}{% if c.url contains 'http' %}{% assign external = true %}{% endif %}
